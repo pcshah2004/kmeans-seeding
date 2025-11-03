@@ -94,7 +94,7 @@ def kmeanspp(
     return centers
 
 
-def rejection_sampling(
+def rskmeans(
     X: np.ndarray,
     n_clusters: int,
     *,
@@ -117,12 +117,13 @@ def rejection_sampling(
     max_iter : int, default=50
         Maximum number of rejection sampling iterations per center.
         Higher values improve quality but take longer.
-    index_type : {'Flat', 'LSH', 'IVFFlat', 'HNSW'}, default='LSH'
-        FAISS index type for approximate nearest neighbor queries:
+    index_type : {'Flat', 'LSH', 'IVFFlat', 'HNSW', 'FastLSH'}, default='LSH'
+        Approximate nearest neighbor index type:
         - 'Flat': Exact search (slowest, most accurate)
-        - 'LSH': Locality-sensitive hashing (fast, ~90-95% accuracy)
+        - 'LSH': FAISS LSH (fast, ~90-95% accuracy)
         - 'IVFFlat': Inverted file index (fast, ~99% accuracy)
         - 'HNSW': Hierarchical NSW (very fast, ~95-99% accuracy)
+        - 'FastLSH': DHHash-based Fast LSH (very fast, ~90-95% accuracy)
     random_state : int, optional
         Random seed for reproducibility.
 
@@ -139,12 +140,12 @@ def rejection_sampling(
 
     Examples
     --------
-    >>> from kmeans_seeding import rejection_sampling
+    >>> from kmeans_seeding import rskmeans
     >>> from sklearn.cluster import KMeans
     >>> import numpy as np
     >>>
     >>> X = np.random.randn(10000, 50)
-    >>> centers = rejection_sampling(X, n_clusters=100, index_type='LSH')
+    >>> centers = rskmeans(X, n_clusters=100, index_type='LSH')
     >>> kmeans = KMeans(n_clusters=100, init=centers, n_init=1)
     >>> kmeans.fit(X)
     """
@@ -226,7 +227,7 @@ def afkmc2(
     return centers
 
 
-def fast_lsh(
+def multitree_lsh(
     X: np.ndarray,
     n_clusters: int,
     *,
@@ -272,12 +273,12 @@ def fast_lsh(
 
     Examples
     --------
-    >>> from kmeans_seeding import fast_lsh
+    >>> from kmeans_seeding import multitree_lsh
     >>> from sklearn.cluster import KMeans
     >>> import numpy as np
     >>>
     >>> X = np.random.randn(10000, 50)
-    >>> centers = fast_lsh(X, n_clusters=100)
+    >>> centers = multitree_lsh(X, n_clusters=100)
     >>> kmeans = KMeans(n_clusters=100, init=centers, n_init=1)
     >>> kmeans.fit(X)
     """
@@ -302,6 +303,10 @@ def fast_lsh(
     )
 
     return centers
+
+
+# Backwards compatibility alias
+fast_lsh = multitree_lsh
 
 
 def rejection_sampling_lsh_2020(

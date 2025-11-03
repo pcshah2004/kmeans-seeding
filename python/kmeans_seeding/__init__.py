@@ -12,11 +12,11 @@ Algorithms included:
 - Fast-LSH k-means++ (Google 2020)
 
 Example usage:
-    >>> from kmeans_seeding import rejection_sampling
+    >>> from kmeans_seeding import rskmeans
     >>> from sklearn.cluster import KMeans
     >>>
     >>> # Get initial centers using RS-k-means++
-    >>> centers = rejection_sampling(X, n_clusters=10)
+    >>> centers = rskmeans(X, n_clusters=10)
     >>>
     >>> # Use with sklearn
     >>> kmeans = KMeans(n_clusters=10, init=centers, n_init=1)
@@ -29,17 +29,21 @@ __email__ = "cs1221594@cse.iitd.ac.in"
 
 from .initializers import (
     kmeanspp,
-    rejection_sampling,
+    rskmeans,
+    rejection_sampling,  # Backwards compatibility
     afkmc2,
-    fast_lsh,
+    multitree_lsh,
+    fast_lsh,  # Backwards compatibility
     rejection_sampling_lsh_2020,
 )
 
 __all__ = [
     "kmeanspp",
-    "rejection_sampling",
+    "rskmeans",
+    "rejection_sampling",  # Backwards compatibility
     "afkmc2",
-    "fast_lsh",
+    "multitree_lsh",
+    "fast_lsh",  # Backwards compatibility
     "rejection_sampling_lsh_2020",
     "__version__",
 ]
