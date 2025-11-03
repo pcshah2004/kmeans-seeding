@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Virtual environments
+venv/
+env/
+ENV/
+build_venv/
+test_install_venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# C++
+*.o
+*.a
+*.dylib
+*.so
+*.dll
+*.exe
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!cpp/CMakeLists.txt
+
+# Test outputs
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Project specific
+quantization_analysis/
+fast_k_means_2020/
+rs_kmeans/
+test_*.py
+main.tex
+prefix.sty
+refs.bib
+*.pdf
+*.aux
+*.log
+*.bbl
+*.blg
+*.out
