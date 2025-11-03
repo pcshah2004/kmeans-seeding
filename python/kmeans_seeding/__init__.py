@@ -23,8 +23,8 @@ Example usage:
     >>> kmeans.fit(X)
 """
 
-__version__ = "0.1.0"
-__author__ = "Poojan Shah, Shashwat Agrawal, Ragesh Jaiswal"
+__version__ = "0.2.0"
+__author__ = "Poojan Shah"
 __email__ = "cs1221594@cse.iitd.ac.in"
 
 from .initializers import (
