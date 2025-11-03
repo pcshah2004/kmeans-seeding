@@ -10,14 +10,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kmeans-seeding"
-version = "0.1.0"
+version = "0.2.0"
 description = "Fast k-means++ seeding algorithms with C++ implementation and Python bindings"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Poojan Shah", email = "cs1221594@cse.iitd.ac.in"},
-    {name = "Shashwat Agrawal"},
-    {name = "Ragesh Jaiswal"},
 ]
 maintainers = [
     {name = "Poojan Shah", email = "cs1221594@cse.iitd.ac.in"},
