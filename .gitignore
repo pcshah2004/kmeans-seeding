@@ -66,3 +66,9 @@ refs.bib
 *.bbl
 *.blg
 *.out
+*.axp
+*.brf
+*.synctex.gz
+
+# Embeddings (large binary files, not needed for package)
+embeddings/
