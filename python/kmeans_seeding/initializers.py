@@ -163,6 +163,10 @@ def rskmeans(
     return centers
 
 
+# Backwards compatibility alias
+rejection_sampling = rskmeans
+
+
 def afkmc2(
     X: np.ndarray,
     n_clusters: int,

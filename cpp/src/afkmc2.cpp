@@ -1,3 +1,4 @@
+
 #include "afkmc2.hpp"
 #include <faiss/IndexFlat.h>
 #include <faiss/index_factory.h>
