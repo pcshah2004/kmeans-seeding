@@ -135,9 +135,19 @@ def get_version():
     return "0.0.0"
 
 
+# Allow skipping C++ extension build (e.g., for Read the Docs)
+if os.environ.get("SKIP_CMAKE_BUILD", "").lower() in ("1", "true", "yes"):
+    print("Skipping C++ extension build (SKIP_CMAKE_BUILD is set)")
+    ext_modules = []
+    cmdclass = {}
+else:
+    ext_modules = [CMakeExtension("kmeans_seeding._core")]
+    cmdclass = {"build_ext": CMakeBuild}
+
 setup(
+    name="kmeans-seeding",
     version=get_version(),
-    ext_modules=[CMakeExtension("kmeans_seeding._core")],
-    cmdclass={"build_ext": CMakeBuild},
+    ext_modules=ext_modules,
+    cmdclass=cmdclass,
     zip_safe=False,
 )

@@ -65,13 +65,15 @@ set(CORE_SOURCES
 
 # Algorithm sources - some require FAISS
 set(ALGORITHM_SOURCES
-    src/afkmc2.cpp
     src/fast_lsh.cpp
 )
 
-# Add rs_kmeans only if FAISS is available
+# Add FAISS-dependent algorithms only if FAISS is available
 if(FAISS_FOUND)
-    list(APPEND ALGORITHM_SOURCES src/rs_kmeans.cpp)
+    list(APPEND ALGORITHM_SOURCES
+        src/rs_kmeans.cpp
+        src/afkmc2.cpp
+    )
 endif()
 
 # Core library (without Python bindings)

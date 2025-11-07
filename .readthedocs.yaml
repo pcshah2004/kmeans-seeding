@@ -11,6 +11,9 @@ build:
     post_create_environment:
       # Install dependencies
       - pip install sphinx sphinx-rtd-theme sphinx-copybutton
+    pre_install:
+      # Skip C++ extension build (no FAISS available in RTD environment)
+      - export SKIP_CMAKE_BUILD=1
 
 sphinx:
   configuration: docs_sphinx/conf.py
