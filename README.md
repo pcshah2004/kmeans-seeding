@@ -29,11 +29,7 @@ cd kmeans-seeding
 
 # Build
 mkdir build && cd build
-cmake ../cpp
-make -j8
-
-# Build with examples
-cmake ../cpp -DBUILD_EXAMPLES=ON
+cmake ..
 make -j8
 
 # Run example

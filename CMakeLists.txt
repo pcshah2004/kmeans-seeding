@@ -6,3 +6,9 @@ project(kmeans_seeding_toplevel VERSION 0.1.0)
 
 # Add the cpp subdirectory
 add_subdirectory(cpp)
+
+# Add examples (optional)
+option(BUILD_EXAMPLES "Build examples" ON)
+if(BUILD_EXAMPLES)
+    add_subdirectory(examples)
+endif()
