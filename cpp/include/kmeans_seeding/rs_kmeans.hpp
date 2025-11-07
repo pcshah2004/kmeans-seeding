@@ -5,12 +5,14 @@
 #include <memory>
 #include <random>
 
-// Forward declare FAISS types to avoid header dependency in public interface
+// Forward declare FAISS types (only if FAISS is available)
+#ifdef HAS_FAISS
 namespace faiss {
     struct Index;
 }
+#endif
 
-// Forward declare Google LSH type
+// Forward declare Google LSH types (always available)
 namespace fast_k_means {
     class LSHDataStructure;
     class FastLSH;
@@ -84,7 +86,9 @@ private:
     bool preprocessed_;
 
     // Index for selected centers (incremental)
-    std::unique_ptr<faiss::Index> center_index_;  // FAISS index
+#ifdef HAS_FAISS
+    std::unique_ptr<faiss::Index> center_index_;  // FAISS index (only if available)
+#endif
     std::unique_ptr<fast_k_means::LSHDataStructure> google_lsh_index_;  // Google LSH index
     std::unique_ptr<fast_k_means::FastLSH> fast_lsh_index_;  // Fast LSH index (DHHash)
     std::vector<int> selected_center_indices_;  // Indices into centered_data_

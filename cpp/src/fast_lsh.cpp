@@ -8,9 +8,15 @@ namespace fast_k_means {
 // ==================== HadamardTransform Implementation ====================
 
 int HadamardTransform::next_power_of_2(int n) {
-    int p = 1;
-    while (p < n) p *= 2;
-    return p;
+    // Optimized using bit operations
+    if (n <= 1) return 1;
+    --n;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    return n + 1;
 }
 
 void HadamardTransform::fht(std::vector<double>& data) {
@@ -33,8 +39,17 @@ void HadamardTransform::fht(std::vector<double>& data) {
         }
     }
 
-    // Normalize by 1/sqrt(n)
-    double norm = 1.0 / std::sqrt(n);
+    // Normalize by 1/sqrt(n) - precomputed for efficiency
+    static thread_local std::unordered_map<int, double> norm_cache;
+    auto it = norm_cache.find(n);
+    double norm;
+    if (it != norm_cache.end()) {
+        norm = it->second;
+    } else {
+        norm = 1.0 / std::sqrt(static_cast<double>(n));
+        norm_cache[n] = norm;
+    }
+
     for (int i = 0; i < n; i++) {
         data[i] *= norm;
     }
@@ -95,26 +110,33 @@ void FastLSH::initialize_hash_table(int table_idx) {
 std::vector<double> FastLSH::apply_transform(const std::vector<double>& point, int table_idx) {
     auto& table = hash_tables_[table_idx];
 
-    // Pad point to d_padded with zeros
-    std::vector<double> x(d_padded_, 0.0);
-    for (int i = 0; i < d_; i++) {
-        x[i] = point[i];
-    }
+    // Use thread-local buffer to avoid repeated allocations
+    static thread_local std::vector<double> x;
+    static thread_local std::vector<double> x_perm;
 
-    // Step 1: D (diagonal sign flips)
-    for (int i = 0; i < d_padded_; i++) {
+    x.assign(d_padded_, 0.0);
+    x_perm.resize(d_padded_);
+
+    // Pad point to d_padded with zeros
+    std::copy(point.begin(), point.begin() + d_, x.begin());
+
+    // Step 1: D (diagonal sign flips) - combined with padding for efficiency
+    for (int i = 0; i < d_; i++) {
         x[i] *= table.D[i];
+    }
+    // Apply D to padded zeros (no-op if D[i] is just sign)
+    for (int i = d_; i < d_padded_; i++) {
+        x[i] = 0.0;  // Already 0, but explicitly show the multiplication
     }
 
     // Step 2: H (first Hadamard transform)
     HadamardTransform::fht(x);
 
-    // Step 3: M (permutation)
-    std::vector<double> x_perm(d_padded_);
+    // Step 3: M (permutation) - avoid temporary allocation
     for (int i = 0; i < d_padded_; i++) {
         x_perm[i] = x[table.M[i]];
     }
-    x = std::move(x_perm);
+    std::swap(x, x_perm);
 
     // Step 4: G (Gaussian scaling)
     for (int i = 0; i < d_padded_; i++) {
@@ -140,14 +162,30 @@ std::vector<std::vector<int>> FastLSH::compute_dhhash(const std::vector<double>&
         std::vector<double> transformed = apply_transform(point, table_idx);
 
         // Compute hash values: ⌊transformed / w⌋
-        // Sample k entries without replacement
-        hashes[table_idx].resize(k_);
+        // Reserve space upfront for efficiency
+        hashes[table_idx].reserve(k_);
 
-        // Use systematic sampling to get k diverse hash values
-        int step = d_padded_ / k_;
-        for (int i = 0; i < k_; i++) {
-            int idx = i * step;
-            hashes[table_idx][i] = static_cast<int>(std::floor(transformed[idx] / w_));
+        // FIXED: Use proper sampling strategy based on k and d_padded relationship
+        if (k_ <= d_padded_) {
+            // Systematic sampling: evenly space indices across d_padded
+            // Use floating-point step to handle non-divisible cases
+            double step = static_cast<double>(d_padded_) / static_cast<double>(k_);
+            for (int i = 0; i < k_; i++) {
+                int idx = static_cast<int>(i * step);
+                // Ensure idx is within bounds
+                idx = std::min(idx, d_padded_ - 1);
+                hashes[table_idx].push_back(static_cast<int>(std::floor(transformed[idx] / w_)));
+            }
+        } else {
+            // k > d_padded: Use all dimensions, then wrap around with different offsets
+            // This provides k distinct hash values even when k > d_padded
+            for (int i = 0; i < k_; i++) {
+                int idx = i % d_padded_;
+                // Add small offset based on which "round" we're in to ensure diversity
+                int round = i / d_padded_;
+                double offset = round * 0.1 * w_;  // Small offset to differentiate wrapped indices
+                hashes[table_idx].push_back(static_cast<int>(std::floor((transformed[idx] + offset) / w_)));
+            }
         }
     }
 
@@ -182,8 +220,9 @@ std::vector<int> FastLSH::QueryPoint(const std::vector<double>& point, int max_c
     // Compute DHHash for query point
     auto hashes = compute_dhhash(point);
 
-    // Collect candidates from all hash tables
-    std::unordered_map<int, int> candidate_counts;
+    // Collect candidates from all hash tables - use thread-local to avoid allocations
+    static thread_local std::unordered_map<int, int> candidate_counts;
+    candidate_counts.clear();
 
     for (int table_idx = 0; table_idx < L_; table_idx++) {
         auto& table = hash_tables_[table_idx];
@@ -199,16 +238,36 @@ std::vector<int> FastLSH::QueryPoint(const std::vector<double>& point, int max_c
         }
     }
 
-    // Convert to vector and sort by count (points appearing in more tables are better)
-    std::vector<std::pair<int, int>> candidates;
-    for (const auto& pair : candidate_counts) {
-        candidates.push_back({pair.second, pair.first});  // {count, point_id}
+    // Early return if no candidates
+    if (candidate_counts.empty()) {
+        return std::vector<int>();
     }
-    std::sort(candidates.rbegin(), candidates.rend());  // Descending by count
 
-    // Extract point IDs up to max_candidates
-    std::vector<int> result;
+    // Use partial_sort for efficiency when max_candidates < total_candidates
+    static thread_local std::vector<std::pair<int, int>> candidates;
+    candidates.clear();
+    candidates.reserve(candidate_counts.size());
+
+    for (const auto& pair : candidate_counts) {
+        candidates.emplace_back(pair.second, pair.first);  // {count, point_id}
+    }
+
+    // Optimize: use partial_sort_copy if we only need top-k
     int limit = std::min(max_candidates, static_cast<int>(candidates.size()));
+
+    if (limit < static_cast<int>(candidates.size()) / 2) {
+        // Use nth_element + partial_sort for efficiency
+        std::nth_element(candidates.begin(), candidates.begin() + limit, candidates.end(),
+                        std::greater<std::pair<int, int>>());
+        std::sort(candidates.begin(), candidates.begin() + limit,
+                 std::greater<std::pair<int, int>>());
+    } else {
+        // Full sort
+        std::sort(candidates.begin(), candidates.end(), std::greater<std::pair<int, int>>());
+    }
+
+    // Extract point IDs
+    std::vector<int> result;
     result.reserve(limit);
     for (int i = 0; i < limit; i++) {
         result.push_back(candidates[i].second);

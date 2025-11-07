@@ -1,9 +1,14 @@
 #include "rs_kmeans.hpp"
+
+// FAISS is optional - only include if available
+#ifdef HAS_FAISS
 #include <faiss/IndexFlat.h>
 #include <faiss/index_factory.h>
 #include <faiss/IndexIVFFlat.h>
 #include <faiss/IndexHNSW.h>
 #include <faiss/IndexLSH.h>
+#endif
+
 #include "lsh.h"
 #include "fast_lsh.h"
 #include <numeric>
@@ -13,6 +18,7 @@
 #include <limits>
 #include <iostream>
 #include <sstream>
+#include <unordered_set>
 
 namespace rs_kmeans {
 
@@ -129,6 +135,7 @@ void RSkMeans::initialize_index(const std::string& index_type, const std::string
         return;
     }
 
+#ifdef HAS_FAISS
     // FAISS indices
     if (index_type == "Flat") {
         center_index_.reset(new faiss::IndexFlatL2(d_));
@@ -159,6 +166,20 @@ void RSkMeans::initialize_index(const std::string& index_type, const std::string
             throw std::invalid_argument("Invalid index_type: " + index_type);
         }
     }
+#else
+    // FAISS not available - throw informative error
+    throw std::runtime_error(
+        "FAISS index type '" + index_type + "' requested but FAISS library is not available.\n"
+        "RS-k-means++ requires FAISS for rejection sampling with approximate nearest neighbors.\n\n"
+        "To use RS-k-means++ with FAISS indices (Flat, LSH, IVFFlat, HNSW):\n"
+        "  1. Install FAISS: conda install -c pytorch faiss-cpu\n"
+        "  2. Rebuild the package: pip install --force-reinstall --no-cache-dir kmeans-seeding\n\n"
+        "Alternatively, you can use:\n"
+        "  - FastLSH index (index_type='FastLSH') - works without FAISS\n"
+        "  - GoogleLSH index (index_type='GoogleLSH') - works without FAISS\n"
+        "  - Other algorithms: kmeanspp(), afkmc2(), multitree_lsh() - do not require FAISS"
+    );
+#endif
 }
 
 void RSkMeans::add_center_to_index(int point_idx) {
@@ -186,6 +207,7 @@ void RSkMeans::add_center_to_index(int point_idx) {
         return;
     }
 
+#ifdef HAS_FAISS
     // FAISS indices
     // For IVF indices, we need to train before adding
     if (auto* ivf = dynamic_cast<faiss::IndexIVFFlat*>(center_index_.get())) {
@@ -201,6 +223,7 @@ void RSkMeans::add_center_to_index(int point_idx) {
     }
 
     center_index_->add(1, point);
+#endif
 }
 
 float RSkMeans::compute_delta(int point_idx) {
@@ -260,6 +283,7 @@ float RSkMeans::compute_delta(int point_idx) {
         return static_cast<float>(dist_sq);
     }
 
+#ifdef HAS_FAISS
     // FAISS for approximate nearest neighbor
     float dist_sq;
     faiss::idx_t nearest_idx;
@@ -267,6 +291,10 @@ float RSkMeans::compute_delta(int point_idx) {
     center_index_->search(1, query, 1, &dist_sq, &nearest_idx);
 
     return dist_sq;
+#else
+    // Should not reach here if initialize_index() properly validates
+    throw std::runtime_error("FAISS not available");
+#endif
 }
 
 int RSkMeans::sample_from_proposal(float c1_norm_sq) {
@@ -297,6 +325,10 @@ int RSkMeans::sample_from_norm_distribution() {
 int RSkMeans::sample_next_center(int m, float c1_norm_sq) {
     std::uniform_real_distribution<float> uniform(0.0f, 1.0f);
 
+    // Create a set for fast lookup of already-selected centers
+    std::unordered_set<int> selected_set(selected_center_indices_.begin(),
+                                          selected_center_indices_.end());
+
     int iterations = 0;
     int max_iter = (m < 0) ? std::numeric_limits<int>::max() : m;
 
@@ -305,6 +337,11 @@ int RSkMeans::sample_next_center(int m, float c1_norm_sq) {
 
         // Sample x from proposal distribution (O(log n) time)
         int x = sample_from_proposal(c1_norm_sq);
+
+        // Skip if x is already a selected center
+        if (selected_set.find(x) != selected_set.end()) {
+            continue;
+        }
 
         // Compute acceptance probability
         float delta_x = compute_delta(x);
@@ -321,13 +358,19 @@ int RSkMeans::sample_next_center(int m, float c1_norm_sq) {
     }
 
     // If rejection sampling fails after m iterations, sample uniformly
+    // Make sure we don't select an already-chosen center
     std::uniform_int_distribution<int> uniform_dist(0, n_ - 1);
-    return uniform_dist(rng_);
+    int x;
+    do {
+        x = uniform_dist(rng_);
+    } while (selected_set.find(x) != selected_set.end());
+    return x;
 }
 
 std::vector<int> RSkMeans::assign_labels() {
     std::vector<int> labels(n_);
 
+#ifdef HAS_FAISS
     // If using FastLSH or GoogleLSH, create a temporary FAISS index for label assignment
     std::unique_ptr<faiss::Index> label_index;
     if (current_index_type_ == "FastLSH" || current_index_type_ == "GoogleLSH") {
@@ -360,6 +403,33 @@ std::vector<int> RSkMeans::assign_labels() {
     if (current_index_type_ != "FastLSH" && current_index_type_ != "GoogleLSH") {
         center_index_ = std::move(label_index);
     }
+#else
+    // Brute-force label assignment when FAISS is not available
+    #pragma omp parallel for
+    for (int i = 0; i < n_; ++i) {
+        const float* query = get_point(i);
+        float min_dist_sq = std::numeric_limits<float>::max();
+        int best_label = 0;
+
+        for (size_t j = 0; j < selected_center_indices_.size(); ++j) {
+            int center_idx = selected_center_indices_[j];
+            const float* center = get_point(center_idx);
+
+            float dist_sq = 0.0f;
+            for (int k = 0; k < d_; ++k) {
+                float diff = query[k] - center[k];
+                dist_sq += diff * diff;
+            }
+
+            if (dist_sq < min_dist_sq) {
+                min_dist_sq = dist_sq;
+                best_label = static_cast<int>(j);
+            }
+        }
+
+        labels[i] = best_label;
+    }
+#endif
 
     return labels;
 }

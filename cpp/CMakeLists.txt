@@ -95,42 +95,7 @@ if(OpenMP_CXX_FOUND)
     target_link_libraries(kmeans_seeding_core PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
-# Python bindings (optional, controlled by BUILD_PYTHON)
-option(BUILD_PYTHON "Build Python bindings" ON)
-
-if(BUILD_PYTHON)
-    # Find Python and pybind11
-    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
-    find_package(pybind11 CONFIG QUIET)
-
-    if(pybind11_FOUND)
-        message(STATUS "pybind11 found: ${pybind11_VERSION}")
-
-        # Python extension module
-        pybind11_add_module(_core
-            src/python_bindings.cpp
-        )
-
-        target_link_libraries(_core PRIVATE
-            kmeans_seeding_core
-            ${FAISS_LIBRARIES}
-        )
-
-        target_include_directories(_core PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/include
-        )
-
-        # Set output directory
-        set_target_properties(_core PROPERTIES
-            LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/kmeans_seeding
-        )
-
-        message(STATUS "Python bindings will be built")
-    else()
-        message(WARNING "pybind11 not found. Python bindings will not be built.")
-        message(WARNING "Install pybind11: pip install pybind11")
-    endif()
-endif()
+# Pure C++ library - Python bindings removed for simplicity
 
 # Installation rules
 install(TARGETS kmeans_seeding_core

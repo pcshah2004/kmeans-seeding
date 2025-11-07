@@ -13,8 +13,9 @@ build/
 venv/
 env/
 ENV/
-build_venv/
-test_install_venv/
+*venv/
+*env/
+test_local_install/
 
 # IDE
 .vscode/
@@ -52,15 +53,11 @@ htmlcov/
 # Jupyter
 .ipynb_checkpoints/
 
-# Project specific
-quantization_analysis/
-fast_k_means_2020/
-rs_kmeans/
-test_*.py
-main.tex
-prefix.sty
-refs.bib
-*.pdf
+# Project specific (keep quantization_analysis, but ignore its venv)
+quantization_analysis/venv/
+# Legacy code now in archive/
+archive/fast_k_means_2020/
+archive/rs_kmeans/
 *.aux
 *.log
 *.bbl
