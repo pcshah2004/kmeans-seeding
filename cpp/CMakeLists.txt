@@ -1,11 +1,6 @@
 cmake_minimum_required(VERSION 3.15...3.27)
 project(kmeans_seeding VERSION 0.1.0 LANGUAGES CXX)
 
-# Set C++ standard
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
 # Build type
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -20,33 +15,11 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/kmeans_seeding)
 
-# Find dependencies
-# On macOS with Homebrew, help CMake find OpenMP
-if(APPLE)
-    set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
-    set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I/opt/homebrew/opt/libomp/include")
-    set(OpenMP_C_LIB_NAMES "omp")
-    set(OpenMP_CXX_LIB_NAMES "omp")
-    set(OpenMP_omp_LIBRARY "/opt/homebrew/opt/libomp/lib/libomp.dylib")
-endif()
-
-find_package(OpenMP)
-if(OpenMP_CXX_FOUND)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    message(STATUS "OpenMP found: ${OpenMP_CXX_VERSION}")
-else()
-    message(WARNING "OpenMP not found. Building without OpenMP support.")
-endif()
-
-# FAISS (optional but recommended)
-find_package(faiss QUIET)
+# Add HAS_FAISS definition if FAISS was found by parent
 if(faiss_FOUND)
-    message(STATUS "FAISS found: ${faiss_VERSION}")
     add_compile_definitions(HAS_FAISS)
     set(FAISS_LIBRARIES faiss)
 else()
-    message(WARNING "FAISS not found. Some features will be disabled.")
-    message(WARNING "Install FAISS: conda install -c pytorch faiss-cpu")
     set(FAISS_LIBRARIES "")
 endif()
 
