@@ -69,7 +69,7 @@ set(ALGORITHM_SOURCES
 )
 
 # Add FAISS-dependent algorithms only if FAISS is available
-if(FAISS_FOUND)
+if(faiss_FOUND)
     list(APPEND ALGORITHM_SOURCES
         src/rs_kmeans.cpp
         src/afkmc2.cpp
