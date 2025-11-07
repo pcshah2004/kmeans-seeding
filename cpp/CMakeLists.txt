@@ -63,11 +63,16 @@ set(CORE_SOURCES
     src/single_tree_clustering.cc
 )
 
+# Algorithm sources - some require FAISS
 set(ALGORITHM_SOURCES
-    src/rs_kmeans.cpp
     src/afkmc2.cpp
     src/fast_lsh.cpp
 )
+
+# Add rs_kmeans only if FAISS is available
+if(FAISS_FOUND)
+    list(APPEND ALGORITHM_SOURCES src/rs_kmeans.cpp)
+endif()
 
 # Core library (without Python bindings)
 add_library(kmeans_seeding_core STATIC
