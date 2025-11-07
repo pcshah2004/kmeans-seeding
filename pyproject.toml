@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kmeans-seeding"
-version = "0.2.1"
+version = "0.2.3"
 description = "Fast k-means++ seeding algorithms with C++ implementation and Python bindings"
 readme = "README.md"
 license = {text = "MIT"}
@@ -66,8 +66,7 @@ dev = [
 docs = [
     "sphinx>=5.0",
     "sphinx-rtd-theme>=1.0",
-    "sphinx-autodoc-typehints>=1.19",
-    "numpydoc>=1.5",
+    "sphinx-copybutton>=0.5",
 ]
 all = [
     "kmeans-seeding[faiss,dev,docs]",

@@ -1,0 +1,845 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fast-LSH k-means++ &mdash; kmeans-seeding 0.2.2 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=000c92bf"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../_static/copybutton.js?v=f281be69"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Standard k-means++" href="kmeanspp.html" />
+    <link rel="prev" title="AFK-MC²: Adaptive Fast k-MC²" href="afkmc2.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            kmeans-seeding
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../user_guide/installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/installation.html#basic-installation">Basic Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/installation.html#installing-with-faiss-support">Installing with FAISS Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/installation.html#installing-from-source">Installing from Source</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/installation.html#platform-specific-notes">Platform-Specific Notes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/installation.html#macos">macOS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/installation.html#linux">Linux</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/installation.html#windows">Windows</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/installation.html#verifying-installation">Verifying Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/installation.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/installation.html#c-extension-not-found">C++ Extension Not Found</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/installation.html#faiss-not-found">FAISS Not Found</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/installation.html#openmp-warnings">OpenMP Warnings</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/installation.html#upgrading">Upgrading</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/installation.html#uninstalling">Uninstalling</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../user_guide/quickstart.html">Quickstart Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/quickstart.html#basic-usage">Basic Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/quickstart.html#with-scikit-learn">With Scikit-Learn</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/quickstart.html#trying-different-algorithms">Trying Different Algorithms</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/quickstart.html#standard-k-means">Standard k-means++</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/quickstart.html#rs-k-means-fast-accurate">RS-k-means++ (Fast &amp; Accurate)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/quickstart.html#afk-mc2-mcmc-sampling">AFK-MC² (MCMC Sampling)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/quickstart.html#fast-lsh-k-means-google-2020">Fast-LSH k-means++ (Google 2020)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/quickstart.html#reproducibility">Reproducibility</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/quickstart.html#complete-example">Complete Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/quickstart.html#comparing-algorithms">Comparing Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/quickstart.html#next-steps">Next Steps</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../user_guide/choosing_algorithm.html">Choosing an Algorithm</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/choosing_algorithm.html#start-here-quick-selection">Start Here: Quick Selection</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/choosing_algorithm.html#by-dataset-size">By Dataset Size</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#small-n-10-000">Small (n &lt; 10,000)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#medium-10-000-n-100-000">Medium (10,000 &lt; n &lt; 100,000)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#large-n-100-000">Large (n &gt; 100,000)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/choosing_algorithm.html#by-dimensionality">By Dimensionality</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#low-d-20">Low (d &lt; 20)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#medium-20-d-100">Medium (20 &lt; d &lt; 100)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#high-d-100">High (d &gt; 100)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/choosing_algorithm.html#by-number-of-clusters">By Number of Clusters</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#few-k-50">Few (k &lt; 50)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#medium-50-k-500">Medium (50 &lt; k &lt; 500)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#many-k-500">Many (k &gt; 500)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/choosing_algorithm.html#by-data-type">By Data Type</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#dense-numerical">Dense Numerical</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#sparse-text-one-hot">Sparse (Text, One-Hot)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#images-embeddings">Images/Embeddings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#time-series">Time Series</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/choosing_algorithm.html#by-requirements">By Requirements</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#maximum-speed">Maximum Speed</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#best-quality">Best Quality</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#no-dependencies-no-faiss">No Dependencies (No FAISS)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/choosing_algorithm.html#simple-setup">Simple Setup</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/choosing_algorithm.html#summary-flowchart">Summary Flowchart</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/choosing_algorithm.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../user_guide/sklearn_integration.html">Scikit-Learn Integration</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/sklearn_integration.html#basic-integration">Basic Integration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user_guide/sklearn_integration.html#key-points">Key Points</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/sklearn_integration.html#multiple-initializations">Multiple Initializations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/sklearn_integration.html#pipeline-integration">Pipeline Integration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/sklearn_integration.html#with-minibatchkmeans">With MiniBatchKMeans</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/sklearn_integration.html#cross-validation">Cross-Validation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/sklearn_integration.html#feature-preprocessing">Feature Preprocessing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/sklearn_integration.html#evaluation-metrics">Evaluation Metrics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/sklearn_integration.html#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Algorithm Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="rskmeans.html">RS-k-means++: Rejection Sampling</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="rskmeans.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rskmeans.html#algorithm-details">Algorithm Details</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rskmeans.html#python-api">Python API</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rskmeans.html#kmeans_seeding.rskmeans"><code class="docutils literal notranslate"><span class="pre">rskmeans()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="rskmeans.html#index-type-comparison">Index Type Comparison</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rskmeans.html#parameter-tuning">Parameter Tuning</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rskmeans.html#max-iter">max_iter</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rskmeans.html#index-type">index_type</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="rskmeans.html#performance-tips">Performance Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rskmeans.html#theoretical-background">Theoretical Background</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rskmeans.html#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rskmeans.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="afkmc2.html">AFK-MC²: Adaptive Fast k-MC²</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="afkmc2.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="afkmc2.html#algorithm-details">Algorithm Details</a></li>
+<li class="toctree-l2"><a class="reference internal" href="afkmc2.html#python-api">Python API</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="afkmc2.html#kmeans_seeding.afkmc2"><code class="docutils literal notranslate"><span class="pre">afkmc2()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="afkmc2.html#how-it-works">How It Works</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="afkmc2.html#markov-chain-construction">Markov Chain Construction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="afkmc2.html#sampling-process">Sampling Process</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="afkmc2.html#parameter-tuning">Parameter Tuning</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="afkmc2.html#chain-length">chain_length</a></li>
+<li class="toctree-l3"><a class="reference internal" href="afkmc2.html#adaptive-chain-length">Adaptive Chain Length</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="afkmc2.html#performance-characteristics">Performance Characteristics</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="afkmc2.html#time-complexity">Time Complexity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="afkmc2.html#quality-vs-speed-tradeoff">Quality vs Speed Tradeoff</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="afkmc2.html#comparison-with-other-algorithms">Comparison with Other Algorithms</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="afkmc2.html#vs-standard-k-means">vs Standard k-means++</a></li>
+<li class="toctree-l3"><a class="reference internal" href="afkmc2.html#vs-rs-k-means">vs RS-k-means++</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="afkmc2.html#practical-tips">Practical Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="afkmc2.html#theoretical-background">Theoretical Background</a></li>
+<li class="toctree-l2"><a class="reference internal" href="afkmc2.html#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="afkmc2.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Fast-LSH k-means++</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#algorithm-details">Algorithm Details</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#python-api">Python API</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#kmeans_seeding.multitree_lsh"><code class="docutils literal notranslate"><span class="pre">multitree_lsh()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#parameter-tuning">Parameter Tuning</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#n-trees">n_trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#n-greedy-samples">n_greedy_samples</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#scaling-factor">scaling_factor</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#how-it-works">How It Works</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#tree-embedding">Tree Embedding</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sampling-process">Sampling Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#integer-casting">Integer Casting</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#performance-characteristics">Performance Characteristics</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#when-fast-lsh-excels">When Fast-LSH Excels</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#comparison-with-other-algorithms">Comparison with Other Algorithms</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#practical-tips">Practical Tips</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#theoretical-background">Theoretical Background</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#references">References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="kmeanspp.html">Standard k-means++</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="kmeanspp.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kmeanspp.html#python-api">Python API</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="kmeanspp.html#kmeans_seeding.kmeanspp"><code class="docutils literal notranslate"><span class="pre">kmeanspp()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="kmeanspp.html#algorithm">Algorithm</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="kmeanspp.html#d2-sampling">D² Sampling</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="kmeanspp.html#advantages">Advantages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kmeanspp.html#limitations">Limitations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kmeanspp.html#when-to-use-alternatives">When to Use Alternatives</a></li>
+<li class="toctree-l2"><a class="reference internal" href="kmeanspp.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="comparison.html">Algorithm Comparison</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="comparison.html#quick-recommendation">Quick Recommendation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="comparison.html#decision-tree">Decision Tree</a></li>
+<li class="toctree-l2"><a class="reference internal" href="comparison.html#detailed-comparison">Detailed Comparison</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#feature-matrix">Feature Matrix</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#performance-benchmarks">Performance Benchmarks</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="comparison.html#use-case-recommendations">Use Case Recommendations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#text-clustering-tf-idf-word2vec">Text Clustering (TF-IDF, Word2Vec)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#image-clustering-features-embeddings">Image Clustering (Features/Embeddings)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#customer-segmentation">Customer Segmentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#time-series-sensor-data">Time Series / Sensor Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#biological-genomic-data">Biological / Genomic Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#small-datasets-n-10k">Small Datasets (n &lt; 10K)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="comparison.html#quality-vs-speed-tradeoff">Quality vs Speed Tradeoff</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#fastest-slight-quality-loss">Fastest (Slight Quality Loss)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#balanced-recommended">Balanced (Recommended)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#best-quality-slower">Best Quality (Slower)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#exact-slowest">Exact (Slowest)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="comparison.html#common-patterns">Common Patterns</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#pattern-1-try-fast-first">Pattern 1: Try Fast First</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#pattern-2-multiple-runs">Pattern 2: Multiple Runs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="comparison.html#pattern-3-progressive-refinement">Pattern 3: Progressive Refinement</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="comparison.html#faq">FAQ</a></li>
+<li class="toctree-l2"><a class="reference internal" href="comparison.html#summary-table">Summary Table</a></li>
+<li class="toctree-l2"><a class="reference internal" href="comparison.html#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/initializers.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/initializers.html#main-functions">Main Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/initializers.html#rskmeans">rskmeans</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/initializers.html#kmeans_seeding.rskmeans"><code class="docutils literal notranslate"><span class="pre">rskmeans()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/initializers.html#kmeanspp">kmeanspp</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/initializers.html#kmeans_seeding.kmeanspp"><code class="docutils literal notranslate"><span class="pre">kmeanspp()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/initializers.html#afkmc2">afkmc2</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/initializers.html#kmeans_seeding.afkmc2"><code class="docutils literal notranslate"><span class="pre">afkmc2()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/initializers.html#multitree-lsh">multitree_lsh</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/initializers.html#kmeans_seeding.multitree_lsh"><code class="docutils literal notranslate"><span class="pre">multitree_lsh()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/initializers.html#aliases">Aliases</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/initializers.html#rejection-sampling">rejection_sampling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/initializers.html#fast-lsh">fast_lsh</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/initializers.html#complete-example">Complete Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/initializers.html#parameter-summary">Parameter Summary</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/initializers.html#common-parameters">Common Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/initializers.html#algorithm-specific-parameters">Algorithm-Specific Parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/initializers.html#return-values">Return Values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/initializers.html#exceptions">Exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/initializers.html#type-hints">Type Hints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/initializers.html#see-also">See Also</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../api/advanced.html">Advanced Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/advanced.html#custom-distance-metrics">Custom Distance Metrics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/advanced.html#incremental-clustering">Incremental Clustering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/advanced.html#parallel-initialization">Parallel Initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/advanced.html#hierarchical-initialization">Hierarchical Initialization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/advanced.html#weighted-sampling">Weighted Sampling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/advanced.html#warm-starting">Warm Starting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/advanced.html#memory-efficient-processing">Memory-Efficient Processing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/advanced.html#custom-index-parameters-rs-k-means">Custom Index Parameters (RS-k-means++)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/advanced.html#debugging-and-profiling">Debugging and Profiling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../api/advanced.html#see-also">See Also</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Additional Information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../changelog.html">Changelog</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../changelog.html#version-0-2-2-november-2025">Version 0.2.2 (November 2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../changelog.html#version-0-2-1-2025">Version 0.2.1 (2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../changelog.html#version-0-2-0-2025">Version 0.2.0 (2025)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../changelog.html#version-0-1-0-2024">Version 0.1.0 (2024)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../changelog.html#future-plans">Future Plans</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../contributing.html">Contributing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#getting-started">Getting Started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#development-setup">Development Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#code-style">Code Style</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#testing">Testing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#documentation">Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#pull-request-process">Pull Request Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#reporting-issues">Reporting Issues</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#feature-requests">Feature Requests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#code-of-conduct">Code of Conduct</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#license">License</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#contact">Contact</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../contributing.html#thank-you">Thank You!</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../references.html">References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../references.html#academic-papers">Academic Papers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../references.html#rs-k-means">RS-k-means++</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../references.html#k-means">k-means++</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../references.html#afk-mc2">AFK-MC²</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../references.html#fast-lsh-k-means">Fast-LSH k-means++</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../references.html#related-work">Related Work</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../references.html#clustering">Clustering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../references.html#approximate-nearest-neighbors">Approximate Nearest Neighbors</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../references.html#external-resources">External Resources</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../references.html#software">Software</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../references.html#documentation">Documentation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../references.html#tutorials">Tutorials</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../references.html#citation">Citation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../references.html#contact">Contact</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">kmeans-seeding</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Fast-LSH k-means++</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/algorithms/fast_lsh.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="fast-lsh-k-means">
+<h1>Fast-LSH k-means++<a class="headerlink" href="#fast-lsh-k-means" title="Link to this heading"></a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p><strong>Fast-LSH k-means++</strong> (also known as <code class="docutils literal notranslate"><span class="pre">multitree_lsh</span></code>) is a k-means++ initialization algorithm from Google Research (2020) that uses tree embedding and locality-sensitive hashing (LSH) for fast D² sampling.</p>
+<p>The algorithm achieves speedup by:</p>
+<ol class="arabic simple">
+<li><p>Embedding points into multiple random trees</p></li>
+<li><p>Using integer casting for fast sampling</p></li>
+<li><p>Employing LSH for nearest neighbor queries</p></li>
+</ol>
+<p><strong>When to use:</strong></p>
+<ul class="simple">
+<li><p>High-dimensional data (d &gt; 100 features)</p></li>
+<li><p>Sparse data (text, images with many zero features)</p></li>
+<li><p>When you want proven Google-scale performance</p></li>
+<li><p>Simple setup with minimal parameters</p></li>
+</ul>
+<p><strong>Key advantages:</strong></p>
+<p>✅ Excellent for high-dimensional sparse data</p>
+<p>✅ Proven at Google scale (billions of points)</p>
+<p>✅ Few parameters to tune</p>
+<p>✅ <strong>Highly optimized</strong> (Nov 2025: 20-40% faster, critical bug fixed)</p>
+</section>
+<section id="algorithm-details">
+<h2>Algorithm Details<a class="headerlink" href="#algorithm-details" title="Link to this heading"></a></h2>
+<p>Fast-LSH k-means++ uses a multi-tree embedding approach:</p>
+<ol class="arabic simple">
+<li><p><strong>Tree Construction</strong>: Build multiple random projection trees</p></li>
+<li><p><strong>Integer Casting</strong>: Convert distances to integers for fast sampling</p></li>
+<li><p><strong>Weighted Sampling</strong>: Sample from trees according to D² weights</p></li>
+<li><p><strong>Greedy Selection</strong>: Select centers with maximum potential</p></li>
+</ol>
+<p><strong>Key innovation</strong>: Tree embedding allows O(1) sampling operations instead of O(n) distance computations.</p>
+<p><strong>Complexity</strong>:</p>
+<ul class="simple">
+<li><p>Tree construction: <span class="math notranslate nohighlight">\(O(T \\cdot n \\cdot d)\)</span> where T is number of trees (typically 4-8)</p></li>
+<li><p>Per center: <span class="math notranslate nohighlight">\(O(d \\cdot \\log n)\)</span> average case</p></li>
+<li><p>Total: <span class="math notranslate nohighlight">\(O(T \\cdot n \\cdot d + k \\cdot d \\cdot \\log n)\)</span> vs <span class="math notranslate nohighlight">\(O(nkd)\)</span> for standard k-means++</p></li>
+</ul>
+<p><strong>Recent optimizations (Nov 2025)</strong>:
+- Fixed critical hash collision bug when k &gt; d
+- 20-40% faster queries
+- Optimized memory allocations
+- See <code class="docutils literal notranslate"><span class="pre">FAST_LSH_OPTIMIZATIONS.md</span></code> for details</p>
+</section>
+<section id="python-api">
+<h2>Python API<a class="headerlink" href="#python-api" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="kmeans_seeding.multitree_lsh">
+<span class="sig-prename descclassname"><span class="pre">kmeans_seeding.</span></span><span class="sig-name descname"><span class="pre">multitree_lsh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_clusters</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_trees</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaling_factor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_greedy_samples</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'Flat'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/kmeans_seeding/initializers.html#multitree_lsh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#kmeans_seeding.multitree_lsh" title="Link to this definition"></a></dt>
+<dd><p>Initialize cluster centers using Fast-LSH tree embedding (Google 2020).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>array-like</em><em> of </em><em>shape</em><em> (</em><em>n_samples</em><em>, </em><em>n_features</em><em>)</em>) – Training data</p></li>
+<li><p><strong>n_clusters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of clusters to initialize</p></li>
+<li><p><strong>n_trees</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of random projection trees.
+More trees = better quality but slower.
+Default: 4</p></li>
+<li><p><strong>scaling_factor</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Scaling factor for integer casting.
+Controls precision of distance approximation.
+Default: 1.0</p></li>
+<li><p><strong>n_greedy_samples</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of greedy samples per center.
+Higher = better quality.
+Default: 1</p></li>
+<li><p><strong>index_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – FAISS index type for final label assignment.
+Default: <code class="docutils literal notranslate"><span class="pre">'Flat'</span></code></p></li>
+<li><p><strong>random_state</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Random seed for reproducibility</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Initial cluster centers</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>ndarray of shape (n_clusters, n_features)</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If n_samples &lt; n_clusters or invalid parameters</p>
+</dd>
+</dl>
+<p><strong>Alias</strong>: <code class="docutils literal notranslate"><span class="pre">fast_lsh()</span></code> is an alias for <code class="docutils literal notranslate"><span class="pre">multitree_lsh()</span></code></p>
+<p><strong>Examples:</strong></p>
+<p>Basic usage:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">kmeans_seeding</span><span class="w"> </span><span class="kn">import</span> <span class="n">multitree_lsh</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">10000</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>With custom parameters:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># High quality mode</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+                       <span class="n">n_trees</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+                       <span class="n">n_greedy_samples</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                       <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+
+<span class="c1"># Fast mode</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>
+                       <span class="n">n_trees</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                       <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Using the alias:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">kmeans_seeding</span><span class="w"> </span><span class="kn">import</span> <span class="n">fast_lsh</span>
+
+<span class="n">centers</span> <span class="o">=</span> <span class="n">fast_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For sparse data (text, images):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.feature_extraction.text</span><span class="w"> </span><span class="kn">import</span> <span class="n">TfidfVectorizer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kmeans_seeding</span><span class="w"> </span><span class="kn">import</span> <span class="n">multitree_lsh</span>
+
+<span class="c1"># Text data</span>
+<span class="n">vectorizer</span> <span class="o">=</span> <span class="n">TfidfVectorizer</span><span class="p">(</span><span class="n">max_features</span><span class="o">=</span><span class="mi">10000</span><span class="p">)</span>
+<span class="n">X</span> <span class="o">=</span> <span class="n">vectorizer</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">documents</span><span class="p">)</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
+
+<span class="c1"># Fast-LSH excels on sparse high-dimensional data</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
+                       <span class="n">n_trees</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+                       <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</section>
+<section id="parameter-tuning">
+<h2>Parameter Tuning<a class="headerlink" href="#parameter-tuning" title="Link to this heading"></a></h2>
+<section id="n-trees">
+<h3>n_trees<a class="headerlink" href="#n-trees" title="Link to this heading"></a></h3>
+<p>Number of random projection trees:</p>
+<dl class="simple">
+<dt><strong>Low (2-3)</strong>:</dt><dd><ul class="simple">
+<li><p>Fastest execution</p></li>
+<li><p>Lower quality approximation</p></li>
+<li><p>May miss good centers</p></li>
+</ul>
+</dd>
+<dt><strong>Medium (4-6)</strong> [<strong>Recommended</strong>]:</dt><dd><ul class="simple">
+<li><p>Good balance</p></li>
+<li><p>Robust performance</p></li>
+<li><p>Default: 4</p></li>
+</ul>
+</dd>
+<dt><strong>High (8-12)</strong>:</dt><dd><ul class="simple">
+<li><p>Best quality</p></li>
+<li><p>Slower construction</p></li>
+<li><p>Diminishing returns beyond ~8</p></li>
+</ul>
+</dd>
+</dl>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Fast mode</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">n_trees</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="c1"># Balanced (recommended)</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">n_trees</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+
+<span class="c1"># Quality mode</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">n_trees</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Rule of thumb</strong>: Use <code class="docutils literal notranslate"><span class="pre">n_trees</span> <span class="pre">=</span> <span class="pre">4</span></code> for most cases, increase to 6-8 for critical applications.</p>
+</section>
+<section id="n-greedy-samples">
+<h3>n_greedy_samples<a class="headerlink" href="#n-greedy-samples" title="Link to this heading"></a></h3>
+<p>Number of greedy samples per center:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Standard (fastest)</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">n_greedy_samples</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="c1"># Enhanced quality</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">n_greedy_samples</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="c1"># Best quality (slower)</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">n_greedy_samples</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Impact</strong>: Each additional greedy sample improves quality by ~5-10% but adds linear cost.</p>
+</section>
+<section id="scaling-factor">
+<h3>scaling_factor<a class="headerlink" href="#scaling-factor" title="Link to this heading"></a></h3>
+<p>Controls integer casting precision:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Coarse approximation (faster)</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">scaling_factor</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+
+<span class="c1"># Standard (default)</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">scaling_factor</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+
+<span class="c1"># Fine approximation (better quality)</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">scaling_factor</span><span class="o">=</span><span class="mf">2.0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Note</strong>: Larger values increase memory usage. Stick with 1.0 unless you have specific needs.</p>
+</section>
+</section>
+<section id="how-it-works">
+<h2>How It Works<a class="headerlink" href="#how-it-works" title="Link to this heading"></a></h2>
+<section id="tree-embedding">
+<h3>Tree Embedding<a class="headerlink" href="#tree-embedding" title="Link to this heading"></a></h3>
+<p>Each tree is constructed by:</p>
+<ol class="arabic simple">
+<li><p><strong>Random projection</strong>: Choose random direction in feature space</p></li>
+<li><p><strong>Partition</strong>: Split points based on projection values</p></li>
+<li><p><strong>Recursive splitting</strong>: Build binary tree structure</p></li>
+<li><p><strong>Leaf nodes</strong>: Store points in leaves</p></li>
+</ol>
+<p><strong>Key property</strong>: Points in the same leaf are likely to be close in the original space.</p>
+</section>
+<section id="sampling-process">
+<h3>Sampling Process<a class="headerlink" href="#sampling-process" title="Link to this heading"></a></h3>
+<p>For each center:</p>
+<ol class="arabic simple">
+<li><p><strong>Compute weights</strong>: For each tree, weight = sum of D² distances in each leaf</p></li>
+<li><p><strong>Sample leaf</strong>: Choose a leaf proportional to its weight</p></li>
+<li><p><strong>Sample point</strong>: Choose a point from the sampled leaf</p></li>
+<li><p><strong>Greedy selection</strong>: Repeat n_greedy_samples times, pick best</p></li>
+</ol>
+<p><strong>Efficiency</strong>: Sampling is O(log n) per tree, much faster than O(n) for exact sampling.</p>
+</section>
+<section id="integer-casting">
+<h3>Integer Casting<a class="headerlink" href="#integer-casting" title="Link to this heading"></a></h3>
+<p>Distances are converted to integers for fast arithmetic:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}w_{\\text{int}} = \\lfloor \\text{scaling\\_factor} \\cdot w \\rfloor\end{split}\]</div>
+<p>This allows:
+- Fast summation using integer arithmetic
+- Efficient sampling using cumulative sum tables
+- Memory savings (int32 vs float64)</p>
+</section>
+</section>
+<section id="performance-characteristics">
+<h2>Performance Characteristics<a class="headerlink" href="#performance-characteristics" title="Link to this heading"></a></h2>
+<section id="when-fast-lsh-excels">
+<h3>When Fast-LSH Excels<a class="headerlink" href="#when-fast-lsh-excels" title="Link to this heading"></a></h3>
+<p><strong>Best for</strong>:</p>
+<ol class="arabic simple">
+<li><p><strong>High-dimensional data</strong> (d &gt; 100):
+- Text embeddings (d = 300-1000)
+- Image features (d = 512-2048)
+- Graph embeddings</p></li>
+<li><p><strong>Sparse data</strong>:
+- TF-IDF vectors
+- One-hot encodings
+- Document-term matrices</p></li>
+<li><p><strong>Large number of clusters</strong> (k &gt; 500):
+- Tree structure scales well with k</p></li>
+</ol>
+<p><strong>Example performance</strong> (n=100K, d=1000, k=500):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kmeans_seeding</span><span class="w"> </span><span class="kn">import</span> <span class="n">kmeanspp</span><span class="p">,</span> <span class="n">multitree_lsh</span>
+
+<span class="c1"># Standard k-means++: ~30 seconds</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">centers1</span> <span class="o">=</span> <span class="n">kmeanspp</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;k-means++: </span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+
+<span class="c1"># Fast-LSH: ~2 seconds</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+<span class="n">centers2</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">n_trees</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Fast-LSH: </span><span class="si">{</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">start</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+
+<span class="c1"># Speedup: ~15×</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="comparison-with-other-algorithms">
+<h2>Comparison with Other Algorithms<a class="headerlink" href="#comparison-with-other-algorithms" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Algorithm</p></th>
+<th class="head"><p>High-d Sparse</p></th>
+<th class="head"><p>Large k</p></th>
+<th class="head"><p>Setup Complexity</p></th>
+<th class="head"><p>Speed</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>k-means++</p></td>
+<td><p>⭐⭐</p></td>
+<td><p>⭐</p></td>
+<td><p>⭐⭐⭐⭐⭐</p></td>
+<td><p>⭐</p></td>
+</tr>
+<tr class="row-odd"><td><p>RS-k-means++</p></td>
+<td><p>⭐⭐⭐⭐</p></td>
+<td><p>⭐⭐⭐⭐⭐</p></td>
+<td><p>⭐⭐⭐</p></td>
+<td><p>⭐⭐⭐⭐</p></td>
+</tr>
+<tr class="row-even"><td><p>AFK-MC²</p></td>
+<td><p>⭐⭐⭐</p></td>
+<td><p>⭐⭐⭐</p></td>
+<td><p>⭐⭐⭐⭐</p></td>
+<td><p>⭐⭐⭐</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Fast-LSH</strong></p></td>
+<td><p>⭐⭐⭐⭐⭐</p></td>
+<td><p>⭐⭐⭐⭐</p></td>
+<td><p>⭐⭐⭐⭐⭐</p></td>
+<td><p>⭐⭐⭐⭐</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="practical-tips">
+<h2>Practical Tips<a class="headerlink" href="#practical-tips" title="Link to this heading"></a></h2>
+<ol class="arabic">
+<li><p><strong>Normalize your data</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Normalizer</span>
+
+<span class="n">X_norm</span> <span class="o">=</span> <span class="n">Normalizer</span><span class="p">()</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X_norm</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="n">k</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Combine with feature selection</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.feature_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">SelectKBest</span>
+
+<span class="n">selector</span> <span class="o">=</span> <span class="n">SelectKBest</span><span class="p">(</span><span class="n">k</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+<span class="n">X_selected</span> <span class="o">=</span> <span class="n">selector</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X_selected</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="n">k</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Use for text clustering</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.feature_extraction.text</span><span class="w"> </span><span class="kn">import</span> <span class="n">TfidfVectorizer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">kmeans_seeding</span><span class="w"> </span><span class="kn">import</span> <span class="n">multitree_lsh</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">KMeans</span>
+
+<span class="c1"># Vectorize text</span>
+<span class="n">vectorizer</span> <span class="o">=</span> <span class="n">TfidfVectorizer</span><span class="p">(</span><span class="n">max_features</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>
+<span class="n">X</span> <span class="o">=</span> <span class="n">vectorizer</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">documents</span><span class="p">)</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
+
+<span class="c1"># Initialize with Fast-LSH</span>
+<span class="n">centers</span> <span class="o">=</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+                       <span class="n">n_trees</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+                       <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+
+<span class="c1"># Cluster</span>
+<span class="n">kmeans</span> <span class="o">=</span> <span class="n">KMeans</span><span class="p">(</span><span class="n">n_clusters</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">init</span><span class="o">=</span><span class="n">centers</span><span class="p">,</span> <span class="n">n_init</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">kmeans</span><span class="o">.</span><span class="n">fit_predict</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Benchmark on your data</strong>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">kmeans_seeding</span><span class="w"> </span><span class="kn">import</span> <span class="n">multitree_lsh</span><span class="p">,</span> <span class="n">rskmeans</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+
+<span class="n">algorithms</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;Fast-LSH (t=2)&#39;</span><span class="p">:</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">n_trees</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+    <span class="s1">&#39;Fast-LSH (t=4)&#39;</span><span class="p">:</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">n_trees</span><span class="o">=</span><span class="mi">4</span><span class="p">),</span>
+    <span class="s1">&#39;Fast-LSH (t=8)&#39;</span><span class="p">:</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">multitree_lsh</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">n_trees</span><span class="o">=</span><span class="mi">8</span><span class="p">),</span>
+    <span class="s1">&#39;RS-k-means++&#39;</span><span class="p">:</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">rskmeans</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">index_type</span><span class="o">=</span><span class="s1">&#39;FastLSH&#39;</span><span class="p">),</span>
+<span class="p">}</span>
+
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">func</span> <span class="ow">in</span> <span class="n">algorithms</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="n">centers</span> <span class="o">=</span> <span class="n">func</span><span class="p">()</span>
+    <span class="n">elapsed</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">:</span><span class="s2">20s</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">elapsed</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">s&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="theoretical-background">
+<h2>Theoretical Background<a class="headerlink" href="#theoretical-background" title="Link to this heading"></a></h2>
+<p>Fast-LSH provides an <span class="math notranslate nohighlight">\(O(\\log k)\)</span> approximation to the optimal k-means cost:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\\mathbb{E}[\\Phi(S)] \\leq O(\\log k) \\cdot \\Phi_k(X)\end{split}\]</div>
+<p><strong>Key properties</strong>:</p>
+<ul class="simple">
+<li><p>Tree embedding preserves distances with high probability</p></li>
+<li><p>Sampling from trees approximates D² sampling</p></li>
+<li><p>Number of trees controls approximation quality</p></li>
+</ul>
+<p><strong>Mixing guarantee</strong>: With T trees and proper parameters, the algorithm achieves the same approximation guarantee as k-means++ with probability <span class="math notranslate nohighlight">\(1 - 1/\\text{poly}(n)\)</span>.</p>
+</section>
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading"></a></h2>
+<div role="list" class="citation-list">
+<div class="citation" id="cohenaddad2020" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>CohenAddad2020<span class="fn-bracket">]</span></span>
+<p>Cohen-Addad, V., Lattanzi, S., Mitrović, S., Norouzi-Fard, A.,
+Parotsidis, N., &amp; Tarnawski, J. (2020).
+“Fast and accurate k-means++ via rejection sampling.”
+NeurIPS 2020.</p>
+</div>
+</div>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="rskmeans.html"><span class="doc">RS-k-means++: Rejection Sampling</span></a> - Alternative using rejection sampling</p></li>
+<li><p><a class="reference internal" href="afkmc2.html"><span class="doc">AFK-MC²: Adaptive Fast k-MC²</span></a> - MCMC-based approach</p></li>
+<li><p><a class="reference internal" href="comparison.html"><span class="doc">Algorithm Comparison</span></a> - Detailed algorithm comparison</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">FAST_LSH_OPTIMIZATIONS.md</span></code> - Recent performance improvements</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="afkmc2.html" class="btn btn-neutral float-left" title="AFK-MC²: Adaptive Fast k-MC²" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="kmeanspp.html" class="btn btn-neutral float-right" title="Standard k-means++" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Poojan Shah.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
