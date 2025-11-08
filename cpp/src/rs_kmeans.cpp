@@ -11,6 +11,7 @@
 
 #include "lsh.h"
 #include "fast_lsh.h"
+#include "simd_utils.hpp"
 #include <numeric>
 #include <algorithm>
 #include <cmath>
@@ -35,32 +36,81 @@ void RSkMeans::preprocess(const std::vector<float>& data, int n, int d) {
     n_ = n;
     d_ = d;
 
-    // Compute mean
+    // Compute mean with better cache locality (blocked algorithm)
     mean_.resize(d, 0.0f);
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < d; ++j) {
-            mean_[j] += data[i * d + j];
+
+    constexpr int BLOCK_SIZE = 64;  // Cache line size for better locality
+    #ifdef _OPENMP
+    #pragma omp parallel
+    {
+        std::vector<float> local_mean(d, 0.0f);
+        #pragma omp for nowait
+        for (int i = 0; i < n; ++i) {
+            const float* row = &data[i * d];
+            for (int j = 0; j < d; ++j) {
+                local_mean[j] += row[j];
+            }
+        }
+        #pragma omp critical
+        {
+            for (int j = 0; j < d; ++j) {
+                mean_[j] += local_mean[j];
+            }
         }
     }
+    #else
+    for (int i = 0; i < n; ++i) {
+        const float* row = &data[i * d];
+        for (int j = 0; j < d; ++j) {
+            mean_[j] += row[j];
+        }
+    }
+    #endif
+
     for (int j = 0; j < d; ++j) {
         mean_[j] /= n;
     }
 
-    // Center data and compute norms
+    // Center data and compute norms - parallelized with good cache locality
     centered_data_.resize(n * d);
     norms_sq_.resize(n);
-    data_norm_sq_ = 0.0f;
 
+    #ifdef _OPENMP
+    float local_data_norm_sq = 0.0f;
+    #pragma omp parallel for reduction(+:local_data_norm_sq)
     for (int i = 0; i < n; ++i) {
         float norm_sq = 0.0f;
+        const float* src = &data[i * d];
+        float* dst = &centered_data_[i * d];
+
+        // Process in blocks for better vectorization
         for (int j = 0; j < d; ++j) {
-            float centered_val = data[i * d + j] - mean_[j];
-            centered_data_[i * d + j] = centered_val;
+            float centered_val = src[j] - mean_[j];
+            dst[j] = centered_val;
             norm_sq += centered_val * centered_val;
         }
+
+        norms_sq_[i] = norm_sq;
+        local_data_norm_sq += norm_sq;
+    }
+    data_norm_sq_ = local_data_norm_sq;
+    #else
+    data_norm_sq_ = 0.0f;
+    for (int i = 0; i < n; ++i) {
+        float norm_sq = 0.0f;
+        const float* src = &data[i * d];
+        float* dst = &centered_data_[i * d];
+
+        for (int j = 0; j < d; ++j) {
+            float centered_val = src[j] - mean_[j];
+            dst[j] = centered_val;
+            norm_sq += centered_val * centered_val;
+        }
+
         norms_sq_[i] = norm_sq;
         data_norm_sq_ += norm_sq;
     }
+    #endif
 
     // Initialize norm distribution for efficient D_X sampling (Lemma 4.9)
     norm_dist_ = std::discrete_distribution<int>(norms_sq_.begin(), norms_sq_.end());
@@ -250,17 +300,36 @@ float RSkMeans::compute_delta(int point_idx) {
         int max_candidates = 50;  // Budget for LSH query
         std::vector<int> candidates = fast_lsh_index_->QueryPoint(query_double, max_candidates);
 
-        // Compute exact distance to all candidates
+        // Compute exact distance to all candidates with prefetching
         float min_dist_sq = std::numeric_limits<float>::max();
-        for (int candidate_id : candidates) {
+        for (size_t i = 0; i < candidates.size(); ++i) {
+            int candidate_id = candidates[i];
             int center_idx = selected_center_indices_[candidate_id];
+
+            // Prefetch next candidate's data
+            if (i + 1 < candidates.size()) {
+                int next_candidate_id = candidates[i + 1];
+                int next_center_idx = selected_center_indices_[next_candidate_id];
+                const float* next_point = get_point(next_center_idx);
+                __builtin_prefetch(next_point, 0, 3);  // Read, high temporal locality
+            }
+
             float dist_sq = squared_distance(point_idx, center_idx);
             min_dist_sq = std::min(min_dist_sq, dist_sq);
         }
 
         // If no candidates found, fall back to brute force
         if (candidates.empty()) {
-            for (int center_idx : selected_center_indices_) {
+            for (size_t i = 0; i < selected_center_indices_.size(); ++i) {
+                int center_idx = selected_center_indices_[i];
+
+                // Prefetch next center's data
+                if (i + 1 < selected_center_indices_.size()) {
+                    int next_center_idx = selected_center_indices_[i + 1];
+                    const float* next_point = get_point(next_center_idx);
+                    __builtin_prefetch(next_point, 0, 3);
+                }
+
                 float dist_sq = squared_distance(point_idx, center_idx);
                 min_dist_sq = std::min(min_dist_sq, dist_sq);
             }
@@ -438,12 +507,8 @@ float RSkMeans::squared_distance(int i, int j) const {
     const float* pi = get_point(i);
     const float* pj = get_point(j);
 
-    float dist_sq = 0.0f;
-    for (int k = 0; k < d_; ++k) {
-        float diff = pi[k] - pj[k];
-        dist_sq += diff * diff;
-    }
-    return dist_sq;
+    // Use SIMD-optimized distance computation (AVX2/NEON/scalar fallback)
+    return simd::squared_distance_simd(pi, pj, d_);
 }
 
 std::pair<std::vector<float>, std::vector<int>>

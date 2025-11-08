@@ -45,3 +45,57 @@ option(BUILD_EXAMPLES "Build examples" ON)
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
+
+# Add experiments (optional)
+option(BUILD_EXPERIMENTS "Build experiments" ON)
+if(BUILD_EXPERIMENTS)
+    # Three-method benchmark executable
+    add_executable(benchmark experiments/benchmark.cpp)
+    target_link_libraries(benchmark PRIVATE kmeans_seeding_core)
+    target_include_directories(benchmark PRIVATE ${CMAKE_SOURCE_DIR}/cpp/include)
+
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(benchmark PRIVATE OpenMP::OpenMP_CXX)
+    endif()
+
+    if(faiss_FOUND)
+        target_compile_definitions(benchmark PRIVATE HAS_FAISS)
+        target_link_libraries(benchmark PRIVATE faiss)
+    endif()
+
+    # PRONE boosted benchmark executable
+    add_executable(benchmark_prone_boosted
+        experiments/benchmark_prone_boosted.cpp
+        experiments/prone_boosted.cpp)
+    target_link_libraries(benchmark_prone_boosted PRIVATE kmeans_seeding_core)
+    target_include_directories(benchmark_prone_boosted PRIVATE
+        ${CMAKE_SOURCE_DIR}/cpp/include
+        ${CMAKE_SOURCE_DIR}/experiments)
+
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(benchmark_prone_boosted PRIVATE OpenMP::OpenMP_CXX)
+    endif()
+
+    if(faiss_FOUND)
+        target_compile_definitions(benchmark_prone_boosted PRIVATE HAS_FAISS)
+        target_link_libraries(benchmark_prone_boosted PRIVATE faiss)
+    endif()
+
+    # Benchmark with Lightweight coreset
+    add_executable(benchmark_lightweight
+        experiments/benchmark_with_lightweight.cpp
+        experiments/prone_boosted.cpp)
+    target_link_libraries(benchmark_lightweight PRIVATE kmeans_seeding_core)
+    target_include_directories(benchmark_lightweight PRIVATE
+        ${CMAKE_SOURCE_DIR}/cpp/include
+        ${CMAKE_SOURCE_DIR}/experiments)
+
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(benchmark_lightweight PRIVATE OpenMP::OpenMP_CXX)
+    endif()
+
+    if(faiss_FOUND)
+        target_compile_definitions(benchmark_lightweight PRIVATE HAS_FAISS)
+        target_link_libraries(benchmark_lightweight PRIVATE faiss)
+    endif()
+endif()

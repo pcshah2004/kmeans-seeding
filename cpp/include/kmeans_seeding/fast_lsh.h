@@ -61,12 +61,23 @@ private:
     int d_padded_;  // Padded to power of 2 for Hadamard
     double w_;  // Bucket width
 
-    // Hash function for vector<int> keys
+    // Optimized hash function for vector<int> keys using FNV-1a
     struct VectorHash {
         size_t operator()(const std::vector<int>& v) const {
-            size_t hash = 0;
+            // FNV-1a hash - faster than multiple hash calls
+            size_t hash = 14695981039346656037ULL;  // FNV offset basis
+            constexpr size_t FNV_prime = 1099511628211ULL;
+
             for (int i : v) {
-                hash ^= std::hash<int>()(i) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+                // Mix in each byte of the integer
+                hash ^= (i & 0xFF);
+                hash *= FNV_prime;
+                hash ^= ((i >> 8) & 0xFF);
+                hash *= FNV_prime;
+                hash ^= ((i >> 16) & 0xFF);
+                hash *= FNV_prime;
+                hash ^= ((i >> 24) & 0xFF);
+                hash *= FNV_prime;
             }
             return hash;
         }

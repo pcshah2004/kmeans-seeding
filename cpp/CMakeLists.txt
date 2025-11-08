@@ -8,8 +8,28 @@ endif()
 
 # Compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+
+# Aggressive release optimizations
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -mtune=native")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffast-math")         # Aggressive math optimizations
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -funroll-loops")      # Unroll loops
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ftree-vectorize")    # Auto-vectorization
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-signed-zeros")   # Assume no signed zeros
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-trapping-math")  # No FP exceptions
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fassociative-math")  # Allow reassociation
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -freciprocal-math")   # Use reciprocal approximations
+
+# Platform-specific SIMD flags
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mavx2 -mfma")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mcpu=native")
+endif()
+
+# Link-time optimization
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -flto")
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -flto")
 
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -39,6 +59,9 @@ set(CORE_SOURCES
 # Algorithm sources - some require FAISS
 set(ALGORITHM_SOURCES
     src/fast_lsh.cpp
+    src/prone.cpp
+    src/simd_utils.cpp
+    src/lightweight.cpp
 )
 
 # Add FAISS-dependent algorithms only if FAISS is available

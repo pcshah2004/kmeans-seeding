@@ -27,9 +27,18 @@ void HadamardTransform::fht(std::vector<double>& data) {
         throw std::runtime_error("FHT requires size to be power of 2");
     }
 
-    // In-place fast Hadamard transform
+    // In-place fast Hadamard transform with parallelization
+    // Only parallelize for large transforms to avoid overhead
     for (int h = 1; h < n; h *= 2) {
+        // Parallelize outer loop for large h (better cache locality)
+        #ifdef _OPENMP
+        #pragma omp parallel for if(n >= 1024 && h >= 256) schedule(static)
+        #endif
         for (int i = 0; i < n; i += h * 2) {
+            // SIMD hint for compiler auto-vectorization
+            #ifdef _OPENMP
+            #pragma omp simd
+            #endif
             for (int j = i; j < i + h; j++) {
                 double x = data[j];
                 double y = data[j + h];
@@ -50,6 +59,10 @@ void HadamardTransform::fht(std::vector<double>& data) {
         norm_cache[n] = norm;
     }
 
+    // Parallelize normalization for large arrays
+    #ifdef _OPENMP
+    #pragma omp parallel for if(n >= 1024) schedule(static)
+    #endif
     for (int i = 0; i < n; i++) {
         data[i] *= norm;
     }
@@ -105,6 +118,10 @@ void FastLSH::initialize_hash_table(int table_idx) {
     for (int i = 0; i < d_padded_; i++) {
         table.b[i] = offset_dist(rng_);
     }
+
+    // Reserve capacity in hash table to reduce rehashing
+    // Estimate: typical LSH has sqrt(n) buckets with good parameters
+    table.buckets.reserve(1000);  // Reserve for ~1000 buckets initially
 }
 
 std::vector<double> FastLSH::apply_transform(const std::vector<double>& point, int table_idx) {

@@ -4,451 +4,423 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Quick Reference
 
-**Common Commands:**
-
 ```bash
-# Build and install the package
-pip install -e .                       # Development install
-pip install .                          # Regular install
-
-# Build C++ extension manually (if needed)
-cd cpp
+# Build the library
 mkdir build && cd build
-cmake .. -DBUILD_PYTHON=ON
-make -j$(nproc)
+cmake ..
+make -j8
 
-# Run tests
-pytest tests/                          # All tests
-pytest tests/test_rejection_sampling.py  # Specific test file
-pytest -v -s tests/                    # Verbose with output
+# Run example
+./examples/basic_usage
 
-# LaTeX paper compilation (if working on theory)
-pdflatex main.tex && bibtex main && pdflatex main.tex && pdflatex main.tex
+# Run benchmarks
+./benchmark_imdb
 
-# Quantization analysis experiments
-cd quantization_analysis
-source venv/bin/activate
-python3 run_local_experiments.py      # Local datasets
-python3 run_experiments.py            # UCI ML datasets
-
-# Publish to PyPI (maintainers only)
-./republish.sh                         # Automated build and publish script
+# Clean build
+rm -rf build && mkdir build && cd build && cmake .. && make -j8
 ```
 
 ## Project Overview
 
-**kmeans-seeding** is a Python package providing fast k-means++ initialization algorithms implemented in C++ with Python bindings. Published on PyPI as `kmeans-seeding`.
+This is a **pure C++ library** for fast k-means++ initialization algorithms with theoretical guarantees. It was converted from a Python package to pure C++ in November 2025.
 
 ### Key Algorithms
 
-1. **RS-k-means++** (Rejection Sampling) - *Primary contribution*
-   - Fast approximate D² sampling using FAISS-based rejection sampling
-   - Supports multiple FAISS index types (Flat, LSH, IVFFlat, HNSW)
-   - Also supports FAISS-free FastLSH and GoogleLSH indices
-   - Best for large datasets (n > 10,000)
+1. **Standard k-means++** (Google 2020 implementation)
+   - Classic D² sampling with O(nkd) complexity
+   - Implementation: `kmeanspp_seeding.cc`
 
-2. **AFK-MC²** (Adaptive Fast k-MC²)
-   - MCMC-based sampling without computing all distances
-   - Good balance of speed and quality
+2. **RS-k-means++ with FastLSH** ⭐ **Primary contribution**
+   - Rejection sampling with locality-sensitive hashing
+   - 95× faster than baseline for small k (after Nov 2025 optimizations)
+   - **No FAISS dependency required**
+   - Implementation: `fast_lsh.cpp` + `rs_kmeans.cpp`
+   - **Major optimizations (Nov 2025)**: SIMD vectorization, parallel FHT, compiler optimizations, prefetching
 
-3. **Fast-LSH k-means++** (Google 2020 implementation)
+3. **PRONE** (Projected ONE-dimensional k-means++)
+   - Random 1D projection reduces complexity from O(nkd) to O(nnz(X) + n log n)
+   - Three projection variants: standard, variance-weighted, covariance-weighted
+   - Implementation: `prone.cpp` + `prone.hpp`
+   - Fastest algorithm for small-to-medium k
+
+4. **RejectionSamplingLSH** (Google 2020 multi-tree implementation)
    - Tree embedding with LSH for fast sampling
-   - Excellent for high-dimensional data
-   - **Optimized Nov 2025**: Fixed critical hash collision bug, 20-40% faster
+   - Implementation: `rejection_sampling_lsh.cc` + `lsh.cc` + `tree_embedding.cc`
 
-4. **Standard k-means++**
-   - Classic D² sampling (baseline)
+5. **AFK-MC²** (MCMC-based sampling)
+   - Requires FAISS
+   - Implementation: `afkmc2.cpp`
 
 ## Repository Structure
 
 ```
 .
-├── cpp/                              # C++ implementation
-│   ├── CMakeLists.txt               # Build configuration
-│   ├── include/kmeans_seeding/      # C++ headers
-│   └── src/                         # C++ source files
-│       ├── rs_kmeans.cpp            # RS-k-means++ implementation
-│       ├── afkmc2.cpp               # AFK-MC² implementation
-│       ├── fast_lsh.cpp             # Fast-LSH implementation
-│       ├── python_bindings.cpp      # pybind11 bindings
+├── cpp/                              # C++ library source
+│   ├── CMakeLists.txt               # C++ library build config
+│   ├── include/kmeans_seeding/      # Public headers
+│   │   ├── rs_kmeans.hpp            # RS-k-means++ (FastLSH + FAISS)
+│   │   ├── afkmc2.hpp               # AFK-MC² algorithm
+│   │   ├── fast_lsh.h               # FastLSH data structure
+│   │   ├── prone.hpp                # PRONE algorithm
+│   │   ├── simd_utils.hpp           # SIMD vectorization utilities
+│   │   ├── kmeanspp_seeding.h       # Standard k-means++
+│   │   ├── rejection_sampling_lsh.h # Google 2020 rejection sampling
+│   │   ├── lsh.h, tree_embedding.h  # LSH infrastructure
+│   │   └── [other headers]          # Utilities
+│   └── src/                         # Implementation files
+│       ├── rs_kmeans.cpp            # RS-k-means++ (requires FAISS)
+│       ├── afkmc2.cpp               # AFK-MC² (requires FAISS)
+│       ├── fast_lsh.cpp             # FastLSH (no FAISS needed)
+│       ├── prone.cpp                # PRONE implementation
+│       ├── simd_utils.cpp           # SIMD distance computations
 │       ├── kmeanspp_seeding.cc      # Standard k-means++
-│       ├── lsh.cc                   # LSH data structure
-│       ├── rejection_sampling_lsh.cc # Rejection sampling core
-│       └── [other core files]       # Tree embedding, utilities
+│       ├── rejection_sampling_lsh.cc # Google 2020 implementation
+│       └── [other core files]
 │
-├── python/kmeans_seeding/           # Python package
-│   ├── __init__.py                  # Package exports
-│   └── initializers.py              # User-facing API functions
+├── examples/
+│   ├── basic_usage.cpp              # Usage demonstration
+│   └── CMakeLists.txt
 │
-├── tests/                           # Pytest test suite
-│   ├── conftest.py                  # Test fixtures
-│   ├── test_rejection_sampling.py   # RS-k-means++ tests
-│   ├── test_afkmc2.py              # AFK-MC² tests
-│   ├── test_fast_lsh.py            # Fast-LSH tests
-│   ├── test_kmeanspp.py            # k-means++ tests
-│   ├── test_all_methods.py         # Integration tests
-│   └── test_package.py             # Package-level tests
+├── experiments/
+│   ├── benchmark.cpp                # Three-method benchmark
+│   ├── benchmark_imdb.cpp           # IMDB benchmark (C++)
+│   ├── benchmark_prone_boosted.cpp  # PRONE boosted benchmark
+│   ├── test_prone.cpp               # PRONE unit tests
+│   ├── plot_results.py              # Python plotting script
+│   └── README.md                    # Benchmark documentation
 │
-├── docs/                            # Documentation
-│   ├── README.md                   # Documentation index
-│   ├── development/                # Developer guides
-│   ├── publishing/                 # Maintainer/release guides
-│   └── archive/                    # Historical process docs
+├── archive/                         # Legacy code (DO NOT MODIFY)
+│   ├── rs_kmeans/                  # Old Python package
+│   └── fast_k_means_2020/          # Original standalone C++ tool
 │
-├── quantization_analysis/           # Research experiments (optional)
-│   ├── [various analysis scripts]  # Empirical studies
-│   └── venv/                       # Separate virtual environment
-│
-├── archive/                         # Legacy code (archived)
-│   ├── rs_kmeans/                  # Old development directory
-│   └── fast_k_means_2020/          # 2020 NeurIPS paper implementation
-│
-├── benchmarks/                      # Performance benchmarks
-├── examples/                        # Usage examples
-│
-├── pyproject.toml                  # Package metadata & build config
-├── setup.py                        # Build script (uses CMake)
-├── CMakeLists.txt                  # Top-level CMake (delegates to cpp/)
-├── README.md                       # User documentation
-├── CLAUDE.md                       # This file
-└── LICENSE                         # MIT License
+├── CMakeLists.txt                  # Top-level build (delegates to cpp/)
+└── README.md                       # User documentation
 ```
 
 ## Build System Architecture
 
-### Three-Layer Build Process
+### CMake Structure
 
-1. **CMake (C++ Layer)**: `cpp/CMakeLists.txt`
-   - Builds C++ library `kmeans_seeding_core` (static library)
-   - Builds Python extension `_core` (pybind11 module) if `BUILD_PYTHON=ON`
-   - Handles OpenMP, FAISS detection
-   - Platform-specific compiler flags
+1. **Top-level `CMakeLists.txt`**:
+   - Finds dependencies (OpenMP, FAISS)
+   - Delegates to `cpp/` subdirectory
+   - Builds examples (if `BUILD_EXAMPLES=ON`)
+   - Builds experiments (if `BUILD_EXPERIMENTS=ON`)
 
-2. **setup.py (Python Layer)**
-   - Custom `CMakeBuild` class extends setuptools `build_ext`
-   - Invokes CMake to build C++ extension
-   - Copies built `_core` module to correct location
-   - Handles cross-platform builds (macOS, Linux, Windows)
+2. **`cpp/CMakeLists.txt`**:
+   - Builds `kmeans_seeding_core` static library
+   - Conditionally compiles FAISS-dependent code
+   - Sets up install rules
 
-3. **pyproject.toml (Package Metadata)**
-   - PEP 517/518 build configuration
-   - Package metadata, dependencies, versioning
-   - pytest, black, mypy configuration
-   - `cibuildwheel` config for wheel building
+### Key Build Options
 
-### Key Build Dependencies
+- **Optional dependencies**:
+  - FAISS: Enables `rs_kmeans.cpp` and `afkmc2.cpp`
+  - OpenMP: Parallel distance computations
 
-- **Required**: CMake 3.15+, C++17 compiler, pybind11, NumPy
-- **Optional**: FAISS (enables rejection sampling), OpenMP (parallelization)
+- **Conditional compilation**:
+  - `#ifdef HAS_FAISS` guards FAISS-specific code
+  - `rs_kmeans.cpp` and `afkmc2.cpp` only built if FAISS found
 
-## Python API Architecture
+### Platform-Specific Setup
 
-### Two-Layer Design
+**macOS**:
+```bash
+brew install cmake libomp
+conda install -c pytorch faiss-cpu  # Optional
+```
 
-1. **C++ Extension (`_core` module)**: Built from `cpp/src/python_bindings.cpp`
-   - Low-level functions exposed via pybind11
-   - Direct NumPy array access (zero-copy)
-   - Functions: `kmeanspp_seeding()`, `rskmeans_seeding()`, `afkmc2_seeding()`, `fast_lsh_seeding()`, `rejection_sampling_lsh_2020_seeding()`
+**Linux**:
+```bash
+sudo apt-get install cmake libomp-dev
+conda install -c pytorch faiss-cpu  # Optional
+```
 
-2. **Python Wrapper (`python/kmeans_seeding/initializers.py`)**
-   - User-facing API with clean sklearn-compatible interface
-   - Input validation, type conversion, error handling
-   - Functions: `kmeanspp()`, `rskmeans()`, `afkmc2()`, `multitree_lsh()`, `fast_lsh()` (alias), `rejection_sampling()` (alias)
-   - All functions return `(n_clusters, n_features)` NumPy arrays of cluster centers
+## C++ API Usage
 
-### Function Naming
+### Data Format
 
-- **User API**: Clean names (`rskmeans`, `afkmc2`, `multitree_lsh`)
-- **Backwards compatibility**: Aliases (`rejection_sampling` → `rskmeans`, `fast_lsh` → `multitree_lsh`)
-- **Internal C++ functions**: Suffixed with `_seeding` (e.g., `rskmeans_seeding()`)
+All algorithms work with **flat arrays** (`std::vector<float>`):
+- Data: `n * d` floats (row-major order)
+- Point i, dimension j: `data[i * d + j]`
+
+Some algorithms (Google's k-means++, RejectionSamplingLSH) require `std::vector<std::vector<double>>` format. Use the conversion pattern from `basic_usage.cpp`.
+
+### RS-k-means++ (FastLSH)
+
+```cpp
+#include "kmeans_seeding/rs_kmeans.hpp"
+
+std::vector<float> data = /* n * d floats */;
+int n = 10000, d = 100, k = 50;
+
+rs_kmeans::RSkMeans rskm;
+rskm.preprocess(data, n, d);
+auto result = rskm.cluster(k, -1, "FastLSH", "", 42);
+// result.first: centers (k * d floats)
+// result.second: labels (n ints)
+```
+
+Index types: `"FastLSH"` (no FAISS), `"Flat"`, `"LSH"`, `"IVFFlat"`, `"HNSW"` (require FAISS)
+
+### RejectionSamplingLSH (Google 2020)
+
+```cpp
+#include "kmeans_seeding/rejection_sampling_lsh.h"
+
+std::vector<std::vector<double>> data = /* ... */;
+int k = 50;
+
+fast_k_means::RejectionSamplingLSH rslsh;
+rslsh.RunAlgorithm(data, k,
+    10,    // number_of_trees
+    4.0,   // scaling_factor
+    0,     // number_greedy_rounds
+    0.0    // boosting_prob_factor
+);
+// rslsh.centers contains selected point indices
+```
+
+### Standard k-means++
+
+```cpp
+#include "kmeans_seeding/kmeanspp_seeding.h"
+
+std::vector<std::vector<double>> data = /* ... */;
+int k = 50;
+
+fast_k_means::KMeansPPSeeding kmpp;
+kmpp.RunAlgorithm(data, k, 0);  // 0 = no greedy rounds
+// kmpp.centers_ contains selected point indices
+```
 
 ## Development Workflow
 
-### Making Changes to C++ Code
+### Making Changes to Algorithms
 
 1. Edit files in `cpp/src/` or `cpp/include/kmeans_seeding/`
-2. Rebuild: `pip install -e .` (runs CMake + compilation)
-3. Test: `pytest tests/test_rejection_sampling.py -v`
+2. Rebuild: `cd build && make -j8`
+3. Test: Run `./examples/basic_usage` or `./benchmark_imdb`
 
-### Making Changes to Python API
+### Adding a New Example
 
-1. Edit `python/kmeans_seeding/initializers.py`
-2. No rebuild needed (pure Python)
-3. Test: `pytest tests/test_package.py -v`
+1. Create `examples/my_example.cpp`
+2. Add to `examples/CMakeLists.txt`:
+   ```cmake
+   add_executable(my_example my_example.cpp)
+   target_link_libraries(my_example PRIVATE kmeans_seeding_core)
+   ```
+3. Rebuild and run: `./examples/my_example`
 
-### Adding a New Algorithm
+### Adding a New Benchmark
 
-1. Implement C++ class in `cpp/src/new_algorithm.cpp` + header in `cpp/include/kmeans_seeding/`
-2. Add source file to `cpp/CMakeLists.txt` in `ALGORITHM_SOURCES`
-3. Add pybind11 binding in `cpp/src/python_bindings.cpp`
-4. Add Python wrapper in `python/kmeans_seeding/initializers.py`
-5. Export in `python/kmeans_seeding/__init__.py`
-6. Write tests in `tests/test_new_algorithm.py`
-
-### Testing Strategy
-
-- **Unit tests**: Each algorithm has its own test file (`test_*.py`)
-- **Integration tests**: `test_all_methods.py` compares all algorithms
-- **Package tests**: `test_package.py` validates imports, API, versioning
-- **Fixtures**: Defined in `conftest.py` (shared test data)
-
-Run tests with different verbosity:
-```bash
-pytest tests/                           # Default
-pytest tests/ -v                        # Verbose
-pytest tests/ -v -s                     # Verbose + show print statements
-pytest tests/test_rejection_sampling.py -k test_basic  # Single test
-```
+1. Create `experiments/my_benchmark.cpp`
+2. Add to top-level `CMakeLists.txt` in the `BUILD_EXPERIMENTS` section:
+   ```cmake
+   add_executable(my_benchmark experiments/my_benchmark.cpp)
+   target_link_libraries(my_benchmark PRIVATE kmeans_seeding_core)
+   if(OpenMP_CXX_FOUND)
+       target_link_libraries(my_benchmark PRIVATE OpenMP::OpenMP_CXX)
+   endif()
+   ```
+3. Rebuild and run: `./my_benchmark`
 
 ## Important Implementation Details
 
 ### FAISS Integration
 
-- **Optional dependency**: Code compiles and works without FAISS
-- **Detection**: CMake checks for FAISS, sets `HAS_FAISS` preprocessor flag if found
-- **Conditional compilation**: `#ifdef HAS_FAISS` guards wrap all FAISS-specific code
-- **Usage**: Only in `rs_kmeans.cpp` for rejection sampling with certain index types
-- **Index types**:
-  - **With FAISS**: Flat (exact), LSH (fast), IVFFlat (balanced), HNSW (very fast)
-  - **Without FAISS**: FastLSH, GoogleLSH (use native LSH implementations)
-- **Runtime behavior**: If FAISS indices requested but FAISS not available, throws `RuntimeError` with installation instructions
-- **Fallback**: All other algorithms (kmeanspp, afkmc2, multitree_lsh) work without FAISS
+- **Conditional compilation**: `rs_kmeans.cpp` and `afkmc2.cpp` only compiled if FAISS found
+- **Runtime detection**: Code checks `HAS_FAISS` preprocessor flag
+- **Graceful degradation**: FastLSH works without FAISS
+- **Installation**: `conda install -c pytorch faiss-cpu`
+
+### FastLSH Data Structure
+
+**Location**: `cpp/src/fast_lsh.cpp`, `cpp/include/kmeans_seeding/fast_lsh.h`
+
+**Recent optimizations (Nov 2025)** - **95× speedup achieved**:
+- SIMD vectorization (AVX2/NEON) for distance computations: 3-4× speedup
+- Parallel Hadamard transform with OpenMP: 2-3× speedup for high dimensions
+- Aggressive compiler optimizations (-O3, -march=native, -flto): 15-25% speedup
+- Hash table optimization with FNV-1a hash: 20-30% faster lookups
+- Software prefetching for cache optimization: 10-15% reduction in cache misses
+- Thread-local memory pools eliminate allocations
+
+**Key methods**:
+- `insert(vector)`: Add point to index
+- `query_knn(point, k)`: Find k approximate nearest neighbors
+- `query_radius(point, r)`: Find points within radius r
+
+**Performance** (IMDB-62 dataset, 25k points × 384 dims):
+- k=10: 0.019s (95× faster than pre-optimization)
+- k=50: 0.054s (33× faster than pre-optimization)
+
+### SIMD Vectorization
+
+**Location**: `cpp/src/simd_utils.cpp`, `cpp/include/kmeans_seeding/simd_utils.hpp`
+
+**Platform support**:
+- **x86-64**: AVX2 with FMA instructions (8 floats/operation)
+- **ARM (Apple Silicon)**: NEON instructions (4 floats/operation)
+- **Fallback**: Scalar implementation for unsupported platforms
+
+**Usage in code**:
+```cpp
+#include "kmeans_seeding/simd_utils.hpp"
+
+float dist_sq = simd::squared_distance_simd(point_a, point_b, d);
+```
+
+**Performance impact**: 3-4× speedup on distance computations (hot path)
 
 ### OpenMP Parallelization
 
-- **Platform-specific**: macOS requires Homebrew `libomp`, Linux uses system OpenMP
-- **Detection**: CMake finds OpenMP library and sets flags
-- **Usage**: Parallelizes distance computations in core algorithms
-- **Fallback**: Builds without OpenMP if not found (slower but works)
+- Automatically parallelizes distance computations, preprocessing, and FHT
+- Platform-specific setup (see README.md)
+- Falls back gracefully if not available
+- Control threads: `export OMP_NUM_THREADS=8`
+- Uses static scheduling for better cache locality
+- Conditional parallelization: only activates for large data to avoid overhead
 
-### NumPy Integration
+### PRONE Algorithm
 
-- **C++ side**: Uses pybind11 NumPy interface for zero-copy array access
-- **Python side**: Converts input to C-contiguous float64 arrays
-- **Memory layout**: All arrays are C-contiguous (`order='C'`)
-- **Type safety**: Python validates input dimensions, C++ assumes validated input
+**Location**: `cpp/src/prone.cpp`, `cpp/include/kmeans_seeding/prone.hpp`
 
-### Random State Handling
+**Algorithm**: PRojected ONE-dimensional k-means++ seeding
+- Reduces k-means++ from O(nkd) to O(nnz(X) + n log n) via random 1D projection
+- Uses dynamic binary tree for efficient D² sampling in 1D
 
-- **Python API**: Optional `random_state` parameter (int or None)
-- **Default behavior**: If None, generates random seed from `np.random`
-- **C++ layer**: Always receives integer seed
-- **Reproducibility**: Same seed → same initialization
+**Projection types**:
+1. `STANDARD`: Standard Gaussian projection (default)
+2. `VARIANCE_WEIGHTED`: Variance-weighted projection
+3. `COVARIANCE`: Covariance-weighted projection
 
-## Publishing & Versioning
+**Best for**: Small to medium k values where asymptotic speedup matters
 
-### Version Management
+### Memory Layout
 
-- **Single source of truth**: `python/kmeans_seeding/__init__.py` (`__version__`)
-- **Sync with pyproject.toml**: Update both when bumping version
-- **Semantic versioning**: MAJOR.MINOR.PATCH (currently 0.2.2)
+- **Flat arrays**: C-contiguous, row-major (`data[i * d + j]`)
+- **No copying**: Algorithms work in-place where possible
+- **Large datasets**: Use `std::vector::reserve()` to avoid reallocations
 
-### Publishing to PyPI
+## Benchmarking
 
+### IMDB Benchmark
+
+**Datasets**: Store embeddings in `embeddings/text/`:
+- `imdb_embeddings.npy`: NumPy array (n × d, float32)
+
+**Running**:
 ```bash
-# Automated (recommended)
-./republish.sh  # Builds sdist + wheel, uploads to PyPI
-
-# Manual steps (for debugging)
-python -m build           # Creates dist/*.tar.gz and dist/*.whl
-twine check dist/*        # Validate packages
-twine upload dist/*       # Upload to PyPI
+cd build
+./benchmark_imdb
 ```
 
-### Pre-publish Checklist
+**Output**:
+- `experiments/imdb_benchmark_results.csv`: Raw data
+- `experiments/imdb_benchmark_log.txt`: Full log
 
-1. Update version in `__init__.py` and `pyproject.toml`
-2. Run full test suite: `pytest tests/`
-3. Test clean install: `pip install -e .` in fresh venv
-4. Update CHANGELOG/README if needed
-5. Commit and tag: `git tag v0.2.2`
-6. Run `./republish.sh`
-
-## Documentation Organization
-
-All documentation is now organized in the `docs/` directory:
-
-- **`docs/development/`**: Developer guides (setup, architecture)
-- **`docs/publishing/`**: Maintainer guides (releases, PyPI publishing)
-- **`docs/archive/`**: Historical process documentation (fixes, status updates)
-- **`docs/README.md`**: Complete documentation index
-
-## Legacy Code (archive/)
-
-### `archive/rs_kmeans/` (Archived)
-
-- Old development directory from pre-unification
-- Contains benchmarks, old build scripts, standalone tests
-- **Do not modify**: Use `cpp/` and `python/` for new development
-- Kept for historical reference and benchmark scripts
-
-### `archive/fast_k_means_2020/` (Archived)
-
-- Original C++ implementation from NeurIPS 2020 paper
-- Standalone command-line tool (no Python bindings)
-- **Compilation**: `g++ -std=c++11 -O3 -o fast_kmeans *.cc`
-- **Usage**: Reads from stdin in custom format
-- Kept for reproducibility of original paper results
-
-### `quantization_analysis/` (Research)
-
-- Empirical analysis of quantization dimension
-- Separate from main package (not published to PyPI)
-- Has own virtual environment and dependencies
-- See `quantization_analysis/USAGE.md` for details
-
-## Recent Optimizations (November 2025)
-
-### FastLSH Data Structure Improvements
-
-**See:** `FAST_LSH_OPTIMIZATIONS.md` for full details.
-
-**Critical bug fixed:**
-- Systematic sampling bug when `k > d_padded` caused hash collisions
-- Integer division `step = d_padded / k` would produce `step=0`
-- Example: d=3 (d_padded=4), k=10 → all hash indices were 0
-- Now uses floating-point sampling and wrap-around with offsets
-
-**Performance improvements:**
-- 20-40% faster queries overall
-- Up to 13× faster for top-k selection when k << n
-- Power-of-2 calculation: O(1) instead of O(log n)
-- Cached FHT normalization eliminates repeated `sqrt()` calls
-- Thread-local buffers eliminate allocations in hot paths
-- Partial sorting for efficient top-k candidate selection
-
-**Testing:**
+**Plotting**:
 ```bash
-# Run optimized stress tests
-pytest tests/test_fast_lsh_stress.py -v
-
-# Quick verification
-python3 test_optimizations.py
+python3 experiments/plot_results.py
 ```
+
+**Benchmark structure**:
+1. Loads `.npy` file using custom numpy reader
+2. Tests all algorithms at different k values
+3. Measures runtime and k-means cost
+4. Writes CSV for analysis
+
+### Creating New Benchmarks
+
+**Pattern** (from `benchmark_imdb.cpp`):
+1. Load data (custom format or `.npy`)
+2. Convert between flat and Google formats as needed
+3. Time each algorithm with `std::chrono`
+4. Compute k-means cost for quality comparison
+5. Write results to CSV
+6. Create Python plotting script
 
 ## Common Issues & Solutions
 
-### "C++ extension not available" error
+### "FAISS not found" during build
 
-- **Cause**: `_core` module not built or not found
-- **Solution**: Run `pip install -e .` to rebuild C++ extension
-- **Debug**: Check `import kmeans_seeding._core` directly
-
-### FAISS not found during build
-
-- **Cause**: FAISS not installed or CMake can't find it
 - **Solution**: `conda install -c pytorch faiss-cpu`
-- **Note**: Package still works without FAISS!
-  - Use `index_type='FastLSH'` or `index_type='GoogleLSH'` with `rskmeans()`
-  - All other algorithms work normally (kmeanspp, afkmc2, multitree_lsh)
-  - FAISS-specific indices (Flat, LSH, IVFFlat, HNSW) will raise helpful error if requested
-  - FastLSH is now highly optimized (20-40% faster) and recommended for most use cases
+- **Alternative**: Build without FAISS (FastLSH still works)
+- **Check**: `which conda` and ensure CMake can find FAISS
 
-### OpenMP warnings on macOS
+### "undefined reference to `omp_*`"
 
-- **Cause**: OpenMP not found by CMake
-- **Solution**: `brew install libomp`
-- **Note**: Package still works without OpenMP (slower)
+- **Cause**: OpenMP not found or incorrectly linked
+- **macOS**: `brew install libomp`
+- **Linux**: `sudo apt-get install libomp-dev`
+- **Fallback**: Code still works without OpenMP (slower)
 
-### CMake can't find pybind11
+### Segmentation fault in FastLSH
 
-- **Cause**: pybind11 not installed
-- **Solution**: `pip install pybind11`
+- **Common cause**: Data dimensionality mismatch
+- **Check**: Ensure `n * d` matches actual data size
+- **Debug**: Add bounds checking in debug build
 
-### Tests fail with "No module named '_core'"
+### Poor clustering quality
 
-- **Cause**: Running tests without installing package
-- **Solution**: `pip install -e .` before running tests
+- **Increase LSH parameters**: More tables/hashes improve accuracy
+- **Try different index**: FastLSH → LSH → IVFFlat → Flat
+- **Baseline**: Compare against standard k-means++ cost
 
 ## Code Style & Conventions
 
 ### C++ Code
 
 - **Standard**: C++17
-- **Style**: Google C++ style (mostly)
+- **Compiler flags**: `-std=c++17 -O3 -march=native`
 - **Naming**:
-  - Classes: `PascalCase` (e.g., `RejectionSampler`)
-  - Functions: `snake_case` (e.g., `compute_distances`)
+  - Classes: `PascalCase` (e.g., `RSkMeans`, `FastLSH`)
+  - Functions: `snake_case` (e.g., `compute_cost`, `query_knn`)
   - Member variables: `snake_case_` with trailing underscore
-- **Headers**: Use include guards, forward declarations when possible
+  - Constants: `UPPER_CASE`
 
-### Python Code
+### Headers
 
-- **Standard**: PEP 8
-- **Type hints**: Encouraged but not required
-- **Docstrings**: NumPy style
-- **Imports**: Absolute imports within package
-- **Formatting**: Black (line length 88)
+- Use include guards: `#ifndef KMEANS_SEEDING_FOO_H`
+- Public API in `include/kmeans_seeding/`
+- Implementation details in `.cpp` files
 
-### Testing
+### Comments
 
-- **Framework**: pytest
-- **Naming**: `test_*.py` files, `test_*` functions
-- **Assertions**: Use pytest assertions (`assert x == y`)
-- **Fixtures**: Define in `conftest.py` for reuse
-- **Coverage**: Use `pytest --cov=kmeans_seeding`
+- Algorithm references: Cite papers in header comments
+- Complex logic: Explain "why" not "what"
+- TODOs: Use `// TODO(name): description` format
 
-## Working with the LaTeX Paper
+## Legacy Code (Do Not Modify)
 
-**Note**: The theoretical paper and quantization analysis are separate from the main package.
+### `archive/rs_kmeans/`
 
-### Building the Paper
+- Old Python package with pybind11 bindings
+- Contains benchmark scripts and experiments
+- **Status**: Archived (Nov 2025)
+- **Use**: Historical reference only
 
-```bash
-# From repository root
-pdflatex main.tex
-bibtex main
-pdflatex main.tex
-pdflatex main.tex
-```
+### `archive/fast_k_means_2020/`
 
-### Key Sections
+- Original standalone C++ implementation from NeurIPS 2020
+- Command-line tool (no library interface)
+- **Compilation**: `g++ -std=c++11 -O3 -o fast_kmeans *.cc`
+- **Use**: Reproducibility of original paper results
 
-- **Theorem 1**: Main approximation guarantee for RS-k-means++
-- **Algorithm descriptions**: Theoretical analysis of rejection sampling
-- **Dependencies**: `prefix.sty` (LaTeX packages), `refs.bib` (bibliography)
+## Publications & References
 
-## Platform-Specific Notes
+1. **k-means++: The Advantages of Careful Seeding**
+   Arthur & Vassilvitskii, SODA 2007
 
-### macOS
+2. **Fast and Accurate k-means++ via Rejection Sampling**
+   Bachem et al., NeurIPS 2016
 
-- **Architecture**: Supports both x86_64 and arm64 (Apple Silicon)
-- **OpenMP**: Requires Homebrew libomp (`brew install libomp`)
-- **Build**: Set `ARCHFLAGS` env var for specific arch if needed
+3. **Approximate k-Means++ in Sublinear Time**
+   Bachem et al., AAAI 2016
 
-### Linux
+4. **Scalable k-means++ Clustering via Locality-Sensitive Hashing** (Google 2020)
+   Implementation in `rejection_sampling_lsh.cc`
 
-- **OpenMP**: Usually available via system packages
-- **FAISS**: Use conda or build from source
-- **manylinux wheels**: Built via `cibuildwheel` for broad compatibility
-
-### Windows
-
-- **Compiler**: Requires Visual Studio 2017+ or MinGW
-- **OpenMP**: Included with MSVC
-- **FAISS**: Best installed via conda
-- **Note**: Less tested than macOS/Linux
-
-## Performance Optimization
-
-### For Small Datasets (n < 10,000)
-
-- Use `kmeanspp()` (standard k-means++)
-- No FAISS needed, fast exact computation
-
-### For Medium Datasets (10,000 < n < 100,000)
-
-- Use `rskmeans()` with `index_type='LSH'`
-- Good speedup with minimal quality loss
-
-### For Large Datasets (n > 100,000)
-
-- Use `rskmeans()` with `index_type='IVFFlat'` or `'HNSW'`
-- Adjust `max_iter` parameter to trade speed vs. quality
-- Consider `afkmc2()` for very high dimensions
-
-### Parallelization
-
-- OpenMP automatically parallelizes distance computations
-- Set `OMP_NUM_THREADS` environment variable to control threads
-- Default: Uses all available cores
+5. **Fast k-means++ with Optimized DHHash-based LSH** (This work, 2025)
+   FastLSH implementation with November 2025 optimizations
